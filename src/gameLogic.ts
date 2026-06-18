@@ -20,6 +20,7 @@ export function makeEnemy(type: EnemyType, progress: number, hpMultiplier = 1): 
     poisonDps: 0,
     stunTimer: 0,
     reverseTimer: 0,
+    reverseImmunityTimer: 0,
     activeSlowFactor: 0.5,
   };
 }
@@ -114,12 +115,20 @@ function tickEnemyMovement(state: GameState, dt: number, pathTiles: GridPos[]): 
   const enemies = state.enemies.map(enemy => {
     if (enemy.hp <= 0) return enemy;
 
+    const prevReverseTimer = enemy.reverseTimer;
+    const newReverseTimer = Math.max(0, enemy.reverseTimer - dt);
+    // When reversal expires, grant immunity slightly longer than the Rose's cooldown (5s)
+    const newReverseImmunity = prevReverseTimer > 0 && newReverseTimer === 0
+      ? 7
+      : Math.max(0, enemy.reverseImmunityTimer - dt);
+
     let e = {
       ...enemy,
-      slowTimer:    Math.max(0, enemy.slowTimer - dt),
-      poisonTimer:  Math.max(0, enemy.poisonTimer - dt),
-      stunTimer:    Math.max(0, enemy.stunTimer - dt),
-      reverseTimer: Math.max(0, enemy.reverseTimer - dt),
+      slowTimer:             Math.max(0, enemy.slowTimer - dt),
+      poisonTimer:           Math.max(0, enemy.poisonTimer - dt),
+      stunTimer:             Math.max(0, enemy.stunTimer - dt),
+      reverseTimer:          newReverseTimer,
+      reverseImmunityTimer:  newReverseImmunity,
     };
 
     // Apply poison damage (even while stunned)
@@ -204,7 +213,7 @@ function tickTowerAttacks(
       let updated = damage > 0 ? applyDamageToEnemy(e, damage) : e;
       if (stats.poisonDps > 0)       updated = { ...updated, poisonTimer: stats.poisonDuration, poisonDps: stats.poisonDps };
       if (stats.stunDuration > 0)    updated = { ...updated, stunTimer: stats.stunDuration };
-      if (stats.reverseDuration > 0 && updated.reverseTimer <= 0) updated = { ...updated, reverseTimer: stats.reverseDuration };
+      if (stats.reverseDuration > 0 && updated.reverseTimer <= 0 && updated.reverseImmunityTimer <= 0) updated = { ...updated, reverseTimer: stats.reverseDuration };
       if (stats.slowFactor > 0) {
         const slowDur = stats.slowDuration * config.sprinklerDurationMultiplier;
         updated = { ...updated, slowTimer: Math.max(updated.slowTimer, slowDur), activeSlowFactor: stats.slowFactor };

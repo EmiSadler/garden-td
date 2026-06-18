@@ -24,6 +24,7 @@ export interface Enemy {
   poisonDps: number;
   stunTimer: number;
   reverseTimer: number;
+  reverseImmunityTimer: number; // cooldown after reversal expires — prevents immediate re-reversal
   exited?: boolean;   // true if enemy reached the path exit (not killed — no gold reward)
 }
 
