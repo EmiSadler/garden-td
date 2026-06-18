@@ -4,7 +4,7 @@ import { computeGameConfig, canUnlockNode, TECH_NODES } from '../gameConfig';
 describe('computeGameConfig', () => {
   it('returns base values with empty unlock set', () => {
     const config = computeGameConfig(new Set());
-    expect(config.startingGold).toBe(150);
+    expect(config.startingGold).toBe(200);
     expect(config.startingLives).toBe(3);
     expect(config.prepTime).toBe(10);
     expect(config.unlockedTowers).toEqual(

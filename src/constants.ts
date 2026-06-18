@@ -78,8 +78,8 @@ export const BASE_TOWER_STATS: Record<TowerType, TowerStats> = {
 };
 
 export const BASE_ENEMY_STATS: Record<EnemyType, EnemyStats> = {
-  caterpillar: { emoji: '🐛', label: 'Caterpillar', hp: 60,   speed: 2.0, goldReward: 1  },
-  ladybug:     { emoji: '🐞', label: 'Ladybug',     hp: 30,   speed: 4.0, goldReward: 1  },
-  snail:       { emoji: '🐌', label: 'Snail',       hp: 200,  speed: 0.8, goldReward: 3  },
-  boss_snail:  { emoji: '🐌', label: 'Boss Snail',  hp: 2000, speed: 0.5, goldReward: 15 },
+  caterpillar: { emoji: '🐛', label: 'Caterpillar', hp: 45,   speed: 2.0, goldReward: 1  },
+  ladybug:     { emoji: '🐞', label: 'Ladybug',     hp: 22,   speed: 4.0, goldReward: 1  },
+  snail:       { emoji: '🐌', label: 'Snail',       hp: 150,  speed: 0.8, goldReward: 3  },
+  boss_snail:  { emoji: '🐌', label: 'Boss Snail',  hp: 1500, speed: 0.5, goldReward: 15 },
 };

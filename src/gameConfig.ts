@@ -30,7 +30,7 @@ export const TECH_NODES: TechNode[] = [
 
 export function computeGameConfig(unlocked: Set<string>): GameConfig {
   const config: GameConfig = {
-    startingGold: 150,
+    startingGold: 200,
     startingLives: 3,
     prepTime: 10,
     extraGold: 0,
