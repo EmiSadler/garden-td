@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { TowerType, GameConfig } from '../types';
 import { BASE_TOWER_STATS } from '../constants';
 
@@ -8,7 +9,27 @@ interface Props {
   onSelect: (type: TowerType | null) => void;
 }
 
+function TowerTooltip({ type }: { type: TowerType }) {
+  const stats = BASE_TOWER_STATS[type];
+  return (
+    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-gray-900 border border-green-700 rounded-lg p-3 text-xs text-white z-50 shadow-xl pointer-events-none">
+      <p className="font-bold text-sm mb-1">{stats.emoji} {stats.label}</p>
+      {stats.damage > 0 && (
+        <p>⚔️ {stats.damage} dmg{stats.aoe ? ` (AoE r${stats.aoeRadius})` : ''} every {stats.cooldown}s</p>
+      )}
+      {stats.range > 0 && <p>📏 Range: {stats.range} tiles</p>}
+      {stats.incomeAmount > 0 && <p>💰 +{stats.incomeAmount}g every {stats.incomeInterval}s</p>}
+      {stats.slowFactor > 0 && <p>🧊 Slows {Math.round(stats.slowFactor * 100)}% for {stats.slowDuration}s</p>}
+      {stats.poisonDps > 0 && <p>☠️ Poison {stats.poisonDps} DPS for {stats.poisonDuration}s</p>}
+      {stats.stunDuration > 0 && <p>⚡ Stuns for {stats.stunDuration}s</p>}
+      {stats.reverseDuration > 0 && <p>↩️ Reverses for {stats.reverseDuration}s</p>}
+    </div>
+  );
+}
+
 export default function TowerPanel({ gold, selectedTowerType, config, onSelect }: Props) {
+  const [hoveredType, setHoveredType] = useState<TowerType | null>(null);
+
   return (
     <div className="flex gap-2 px-4 py-2 bg-green-950 border-t border-green-800 shrink-0 flex-wrap">
       {config.unlockedTowers.map(type => {
@@ -18,23 +39,29 @@ export default function TowerPanel({ gold, selectedTowerType, config, onSelect }
         const selected = selectedTowerType === type;
 
         return (
-          <button
+          <div
             key={type}
-            onClick={() => onSelect(selected ? null : type)}
-            disabled={!affordable}
-            title={stats.label}
-            className={`flex flex-col items-center px-3 py-1.5 rounded-lg border text-xs transition-all ${
-              selected
-                ? 'bg-yellow-400 border-yellow-300 text-black'
-                : affordable
-                  ? 'bg-green-800 border-green-600 text-white hover:bg-green-700'
-                  : 'bg-green-900 border-green-800 text-green-600 cursor-not-allowed opacity-50'
-            }`}
+            className="relative"
+            onMouseEnter={() => setHoveredType(type)}
+            onMouseLeave={() => setHoveredType(null)}
           >
-            <span className="text-xl">{stats.emoji}</span>
-            <span className="font-semibold">{stats.label}</span>
-            <span>💰 {cost}g</span>
-          </button>
+            {hoveredType === type && <TowerTooltip type={type} />}
+            <button
+              onClick={() => onSelect(selected ? null : type)}
+              disabled={!affordable}
+              className={`flex flex-col items-center px-3 py-1.5 rounded-lg border text-xs transition-all ${
+                selected
+                  ? 'bg-yellow-400 border-yellow-300 text-black'
+                  : affordable
+                    ? 'bg-green-800 border-green-600 text-white hover:bg-green-700'
+                    : 'bg-green-900 border-green-800 text-green-600 cursor-not-allowed opacity-50'
+              }`}
+            >
+              <span className="text-xl">{stats.emoji}</span>
+              <span className="font-semibold">{stats.label}</span>
+              <span>💰 {cost}g</span>
+            </button>
+          </div>
         );
       })}
     </div>

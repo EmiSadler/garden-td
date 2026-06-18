@@ -3,7 +3,7 @@ import { SPAWN_INTERVAL } from './constants';
 
 export function buildWave(wave: number): EnemySpawn[] {
   const baseCount = 5;
-  const totalCount = Math.max(1, Math.floor(baseCount * Math.pow(1.2, wave - 1)));
+  const totalCount = Math.max(1, Math.floor(baseCount * Math.pow(1.3, wave - 1)));
   const isBoss = wave % 10 === 0;
   const phase = Math.floor((wave - 1) / 5);
 

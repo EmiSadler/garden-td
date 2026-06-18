@@ -5,21 +5,22 @@ import { buildWave, calculateSeeds } from './waveBuilder';
 
 // ─── Factories ───────────────────────────────────────────────────────────────
 
-export function makeEnemy(type: EnemyType, progress: number): Enemy {
+export function makeEnemy(type: EnemyType, progress: number, hpMultiplier = 1): Enemy {
   const stats = BASE_ENEMY_STATS[type];
+  const hp = Math.round(stats.hp * hpMultiplier);
   return {
     id: uuidv4(),
     type,
     progress,
-    hp: stats.hp,
-    maxHp: stats.hp,
+    hp,
+    maxHp: hp,
     speed: stats.speed,
     slowTimer: 0,
-    activeSlowFactor: 0.5, // default; overwritten when slow is applied
     poisonTimer: 0,
     poisonDps: 0,
     stunTimer: 0,
     reverseTimer: 0,
+    activeSlowFactor: 0.5,
   };
 }
 
@@ -91,10 +92,11 @@ function spawnDueEnemies(state: GameState, dt: number): GameState {
   const newSpawnTimer = state.spawnTimer + dt;
   const pending = [...state.pendingSpawns];
   const newEnemies: Enemy[] = [];
+  const hpMultiplier = Math.pow(1.1, state.wave - 1);  // +10% HP per wave
 
   let i = 0;
   while (i < pending.length && pending[i].delaySeconds <= newSpawnTimer) {
-    newEnemies.push(makeEnemy(pending[i].type, 0));
+    newEnemies.push(makeEnemy(pending[i].type, 0, hpMultiplier));
     i++;
   }
 

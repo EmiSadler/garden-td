@@ -9,12 +9,14 @@ interface Props {
   selectedTowerType: TowerType | null;
   onClick: () => void;
   onTowerClick: (id: string) => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
 }
 
 const EXIT_TILE = PATH_TILES[PATH_TILES.length - 1];
 const ENTRY_TILE = PATH_TILES[0];
 
-export default function GameTile({ col, row, tower, selectedTowerType, onClick, onTowerClick }: Props) {
+export default function GameTile({ col, row, tower, selectedTowerType, onClick, onTowerClick, onMouseEnter, onMouseLeave }: Props) {
   const isPath = isTileOnPathFast(col, row);
   const isExit = EXIT_TILE.col === col && EXIT_TILE.row === row;
   const isEntry = ENTRY_TILE.col === col && ENTRY_TILE.row === row;
@@ -28,6 +30,8 @@ export default function GameTile({ col, row, tower, selectedTowerType, onClick, 
     <div
       className={`${bg} border border-green-900/30 flex items-center justify-center text-2xl select-none transition-colors`}
       style={{ width: TILE_SIZE, height: TILE_SIZE }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       onClick={() => {
         if (tower) { onTowerClick(tower.id); return; }
         onClick();
