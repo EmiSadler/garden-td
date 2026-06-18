@@ -12,6 +12,7 @@ export default function App() {
   const { techTree, gameConfig, addSeeds, unlockNode } = useTechTree();
   const { state, selectTowerType, placeTower, selectTower, sellTower, restartRun } = useGameState(gameConfig);
   const [showTechTree, setShowTechTree] = useState(false);
+  const [techTreeOpenedFromRunEnd, setTechTreeOpenedFromRunEnd] = useState(false);
   const [seedsAwarded, setSeedsAwarded] = useState(false);
 
   const selectedTower = state.selectedTowerId
@@ -23,6 +24,7 @@ export default function App() {
       addSeeds(state.seedsThisRun);
       setSeedsAwarded(true);
     }
+    setTechTreeOpenedFromRunEnd(true);
     setShowTechTree(true);
   };
 
@@ -37,8 +39,11 @@ export default function App() {
 
   const handleCloseTechTree = () => {
     setShowTechTree(false);
-    setSeedsAwarded(false);
-    restartRun();
+    setTechTreeOpenedFromRunEnd(false);
+    if (techTreeOpenedFromRunEnd) {
+      setSeedsAwarded(false);
+      restartRun();
+    }
   };
 
   return (
@@ -89,7 +94,7 @@ export default function App() {
 
       <div className="mt-4">
         <button
-          onClick={() => setShowTechTree(true)}
+          onClick={() => { setShowTechTree(true); }}
           className="text-green-400 hover:text-green-200 text-sm underline"
         >
           🌱 Tech Tree ({techTree.seeds} seeds)

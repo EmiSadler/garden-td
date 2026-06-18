@@ -15,6 +15,7 @@ export function makeEnemy(type: EnemyType, progress: number): Enemy {
     maxHp: stats.hp,
     speed: stats.speed,
     slowTimer: 0,
+    activeSlowFactor: 0.5, // default; overwritten when slow is applied
     poisonTimer: 0,
     poisonDps: 0,
     stunTimer: 0,
@@ -119,14 +120,14 @@ function tickEnemyMovement(state: GameState, dt: number, pathTiles: GridPos[]): 
       reverseTimer: Math.max(0, enemy.reverseTimer - dt),
     };
 
-    if (e.stunTimer > 0) return e;
-
-    // Apply poison damage
+    // Apply poison damage (even while stunned)
     if (enemy.poisonTimer > 0) {
       e = applyDamageToEnemy(e, enemy.poisonDps * dt);
     }
 
-    const effectiveSpeed = enemy.slowTimer > 0 ? e.speed * 0.5 : e.speed;
+    if (e.stunTimer > 0) return e; // stunned: don't move, don't progress
+
+    const effectiveSpeed = enemy.slowTimer > 0 ? e.speed * e.activeSlowFactor : e.speed;
     const direction = enemy.reverseTimer > 0 ? -1 : 1;
     const newProgress = e.progress + effectiveSpeed * direction * dt;
 
@@ -182,7 +183,7 @@ function tickTowerAttacks(
         let updated = damage > 0 ? applyDamageToEnemy(e, damage) : e;
         if (stats.slowFactor > 0) {
           const slowDur = stats.slowDuration * config.sprinklerDurationMultiplier;
-          updated = { ...updated, slowTimer: Math.max(updated.slowTimer, slowDur) };
+          updated = { ...updated, slowTimer: Math.max(updated.slowTimer, slowDur), activeSlowFactor: stats.slowFactor };
         }
         return updated;
       });
@@ -204,7 +205,7 @@ function tickTowerAttacks(
       if (stats.reverseDuration > 0) updated = { ...updated, reverseTimer: stats.reverseDuration };
       if (stats.slowFactor > 0) {
         const slowDur = stats.slowDuration * config.sprinklerDurationMultiplier;
-        updated = { ...updated, slowTimer: Math.max(updated.slowTimer, slowDur) };
+        updated = { ...updated, slowTimer: Math.max(updated.slowTimer, slowDur), activeSlowFactor: stats.slowFactor };
       }
       return updated;
     });
@@ -217,7 +218,7 @@ function tickTowerAttacks(
       const slowDur = stats.slowDuration * config.sprinklerDurationMultiplier;
       enemies = enemies.map(e => {
         if (!chainIds.has(e.id)) return e;
-        return { ...e, slowTimer: Math.max(e.slowTimer, slowDur) };
+        return { ...e, slowTimer: Math.max(e.slowTimer, slowDur), activeSlowFactor: stats.slowFactor };
       });
     }
 

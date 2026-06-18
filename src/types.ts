@@ -19,6 +19,7 @@ export interface Enemy {
   maxHp: number;
   speed: number;      // path-tiles per second
   slowTimer: number;  // seconds of slow remaining
+  activeSlowFactor: number; // multiplier applied to speed while slowed (e.g. 0.5 = half speed)
   poisonTimer: number;
   poisonDps: number;
   stunTimer: number;
