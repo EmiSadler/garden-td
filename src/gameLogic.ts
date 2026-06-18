@@ -204,7 +204,7 @@ function tickTowerAttacks(
       let updated = damage > 0 ? applyDamageToEnemy(e, damage) : e;
       if (stats.poisonDps > 0)       updated = { ...updated, poisonTimer: stats.poisonDuration, poisonDps: stats.poisonDps };
       if (stats.stunDuration > 0)    updated = { ...updated, stunTimer: stats.stunDuration };
-      if (stats.reverseDuration > 0) updated = { ...updated, reverseTimer: stats.reverseDuration };
+      if (stats.reverseDuration > 0 && updated.reverseTimer <= 0) updated = { ...updated, reverseTimer: stats.reverseDuration };
       if (stats.slowFactor > 0) {
         const slowDur = stats.slowDuration * config.sprinklerDurationMultiplier;
         updated = { ...updated, slowTimer: Math.max(updated.slowTimer, slowDur), activeSlowFactor: stats.slowFactor };
