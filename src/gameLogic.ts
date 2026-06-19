@@ -2,7 +2,6 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Enemy, EnemyType, PlacedTower, TowerType, GameState, GameConfig, GridPos, MapDef } from './types';
 import { BASE_ENEMY_STATS, BASE_TOWER_STATS, WAVE_COUNTDOWN } from './constants';
 import { buildWave, calculateSeeds } from './waveBuilder';
-import { getMapExitTile } from './maps';
 
 // ─── Factories ───────────────────────────────────────────────────────────────
 

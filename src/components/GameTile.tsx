@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function GameTile({
-  col, row, tower, selectedTowerType,
+  col: _col, row: _row, tower, selectedTowerType,
   isOnPath, isExit, isEntry,
   onClick, onTowerClick, onMouseEnter, onMouseLeave,
 }: Props) {
