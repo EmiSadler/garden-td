@@ -11,21 +11,40 @@ export interface GridPos {
   row: number; // 0–11
 }
 
+// A linear array of tiles forming one path segment
+export interface PathSegment {
+  id: string;
+  tiles: GridPos[];
+  nextSegmentIds: string[]; // empty array = this segment leads to the exit
+}
+
+export interface MapDef {
+  id: number;
+  name: string;
+  difficulty: string;        // display label e.g. "Easiest", "Hard"
+  seedMultiplier: number;
+  petalMultiplier: number;
+  segments: PathSegment[];
+  entrySegmentId: string;
+}
+
 export interface Enemy {
   id: string;
   type: EnemyType;
-  progress: number;   // 0 to pathTiles.length-1 (position along path)
+  segmentId: string;         // which segment the enemy is currently on
+  segmentProgress: number;   // 0 to segment.tiles.length-1 within that segment
+  totalProgress: number;     // total tiles traversed across all segments (used for targeting priority)
   hp: number;
   maxHp: number;
-  speed: number;      // path-tiles per second
-  slowTimer: number;  // seconds of slow remaining
-  activeSlowFactor: number; // multiplier applied to speed while slowed (e.g. 0.5 = half speed)
+  speed: number;             // path-tiles per second
+  slowTimer: number;
+  activeSlowFactor: number;
   poisonTimer: number;
   poisonDps: number;
   stunTimer: number;
   reverseTimer: number;
-  reverseImmunityTimer: number; // cooldown after reversal expires — prevents immediate re-reversal
-  exited?: boolean;   // true if enemy reached the path exit (not killed — no gold reward)
+  reverseImmunityTimer: number;
+  exited?: boolean;
 }
 
 export interface PlacedTower {
@@ -33,23 +52,25 @@ export interface PlacedTower {
   type: TowerType;
   col: number;
   row: number;
-  cooldownTimer: number;    // seconds until next attack (counts down)
-  incomeTimer: number;      // sunflower only: seconds until next gold tick
-  hp: number;               // pumpkin only: when 0 it explodes
+  cooldownTimer: number;
+  incomeTimer: number;
+  hp: number;
 }
 
 export interface EnemySpawn {
   type: EnemyType;
-  delaySeconds: number; // time from wave start to spawn
+  delaySeconds: number;
 }
 
 export interface GameState {
   phase: GamePhase;
+  mapId: number;             // which map this run is on
   wave: number;
   gold: number;
   lives: number;
   enemiesKilledThisRun: number;
   seedsThisRun: number;
+  petalsThisRun: number;     // prestige petals earned this run
   enemies: Enemy[];
   towers: PlacedTower[];
   pendingSpawns: EnemySpawn[];
@@ -65,25 +86,25 @@ export interface TowerStats {
   label: string;
   cost: number;
   damage: number;
-  range: number;           // in grid tiles (radius)
-  cooldown: number;        // seconds between attacks
+  range: number;
+  cooldown: number;
   aoe: boolean;
-  aoeRadius: number;       // grid tiles, 0 if not AoE
-  incomeAmount: number;    // gold per tick (sunflower)
-  incomeInterval: number;  // seconds per tick (sunflower)
-  slowFactor: number;      // 0 = no slow, 0.5 = half speed
-  slowDuration: number;    // seconds
-  poisonDps: number;       // poison damage per second
-  poisonDuration: number;  // seconds
-  stunDuration: number;    // seconds
-  reverseDuration: number; // seconds
+  aoeRadius: number;
+  incomeAmount: number;
+  incomeInterval: number;
+  slowFactor: number;
+  slowDuration: number;
+  poisonDps: number;
+  poisonDuration: number;
+  stunDuration: number;
+  reverseDuration: number;
 }
 
 export interface EnemyStats {
   emoji: string;
   label: string;
   hp: number;
-  speed: number;       // path-tiles per second
+  speed: number;
   goldReward: number;
 }
 
@@ -103,12 +124,13 @@ export interface GameConfig {
   cactusCritChance: number;
   startingFreeThorn: boolean;
   unlockedTowers: TowerType[];
+  unlockedMapIds: number[];  // which maps the player can choose (starts as [1])
 }
 
 export interface TechNode {
   id: string;
   branch: 'roots' | 'species' | 'garden';
-  position: number; // 1–6
+  position: number;
   name: string;
   description: string;
   cost: number;
