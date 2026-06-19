@@ -1,17 +1,20 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Enemy, EnemyType, PlacedTower, TowerType, GameState, GameConfig, GridPos } from './types';
+import type { Enemy, EnemyType, PlacedTower, TowerType, GameState, GameConfig, GridPos, MapDef } from './types';
 import { BASE_ENEMY_STATS, BASE_TOWER_STATS, WAVE_COUNTDOWN } from './constants';
 import { buildWave, calculateSeeds } from './waveBuilder';
+import { getMapExitTile } from './maps';
 
 // ─── Factories ───────────────────────────────────────────────────────────────
 
-export function makeEnemy(type: EnemyType, progress: number, hpMultiplier = 1): Enemy {
+export function makeEnemy(type: EnemyType, entrySegmentId: string, hpMultiplier = 1): Enemy {
   const stats = BASE_ENEMY_STATS[type];
   const hp = Math.round(stats.hp * hpMultiplier);
   return {
     id: uuidv4(),
     type,
-    progress,
+    segmentId: entrySegmentId,
+    segmentProgress: 0,
+    totalProgress: 0,
     hp,
     maxHp: hp,
     speed: stats.speed,
@@ -39,25 +42,27 @@ export function makePlacedTower(type: TowerType, col: number, row: number): Plac
 
 // ─── Targeting ───────────────────────────────────────────────────────────────
 
-export function getEnemyGridPos(progress: number, pathTiles: GridPos[]): GridPos {
-  const idx = Math.max(0, Math.min(Math.floor(progress), pathTiles.length - 1));
-  return pathTiles[idx];
+export function getEnemyGridPos(enemy: Enemy, map: MapDef): GridPos {
+  const segment = map.segments.find(s => s.id === enemy.segmentId);
+  if (!segment) return { col: 0, row: 0 };
+  const idx = Math.max(0, Math.min(Math.floor(enemy.segmentProgress), segment.tiles.length - 1));
+  return segment.tiles[idx];
 }
 
 export function findTarget(
   tower: PlacedTower,
   enemies: Enemy[],
   range: number,
-  pathTiles: GridPos[],
+  map: MapDef,
 ): Enemy | null {
   let best: Enemy | null = null;
-  let bestProgress = -1;
+  let bestTotal = -1;
   for (const enemy of enemies) {
     if (enemy.hp <= 0 || enemy.stunTimer > 0) continue;
-    const ePos = getEnemyGridPos(enemy.progress, pathTiles);
+    const ePos = getEnemyGridPos(enemy, map);
     const dist = Math.sqrt((ePos.col - tower.col) ** 2 + (ePos.row - tower.row) ** 2);
-    if (dist <= range && enemy.progress > bestProgress) {
-      bestProgress = enemy.progress;
+    if (dist <= range && enemy.totalProgress > bestTotal) {
+      bestTotal = enemy.totalProgress;
       best = enemy;
     }
   }
@@ -69,11 +74,11 @@ export function findTargetsInRadius(
   row: number,
   radius: number,
   enemies: Enemy[],
-  pathTiles: GridPos[],
+  map: MapDef,
 ): Enemy[] {
   return enemies.filter(e => {
     if (e.hp <= 0) return false;
-    const ePos = getEnemyGridPos(e.progress, pathTiles);
+    const ePos = getEnemyGridPos(e, map);
     const dist = Math.sqrt((ePos.col - col) ** 2 + (ePos.row - row) ** 2);
     return dist <= radius;
   });
@@ -87,17 +92,17 @@ export function applyDamageToEnemy(enemy: Enemy, damage: number): Enemy {
 
 // ─── Spawn logic ─────────────────────────────────────────────────────────────
 
-function spawnDueEnemies(state: GameState, dt: number): GameState {
+function spawnDueEnemies(state: GameState, dt: number, map: MapDef): GameState {
   if (state.pendingSpawns.length === 0) return state;
 
   const newSpawnTimer = state.spawnTimer + dt;
   const pending = [...state.pendingSpawns];
   const newEnemies: Enemy[] = [];
-  const hpMultiplier = Math.pow(1.1, state.wave - 1);  // +10% HP per wave
+  const hpMultiplier = Math.pow(1.1, state.wave - 1);
 
   let i = 0;
   while (i < pending.length && pending[i].delaySeconds <= newSpawnTimer) {
-    newEnemies.push(makeEnemy(pending[i].type, 0, hpMultiplier));
+    newEnemies.push(makeEnemy(pending[i].type, map.entrySegmentId, hpMultiplier));
     i++;
   }
 
@@ -111,43 +116,73 @@ function spawnDueEnemies(state: GameState, dt: number): GameState {
 
 // ─── Enemy movement ───────────────────────────────────────────────────────────
 
-function tickEnemyMovement(state: GameState, dt: number, pathTiles: GridPos[]): GameState {
+function tickEnemyMovement(state: GameState, dt: number, map: MapDef): GameState {
   const enemies = state.enemies.map(enemy => {
     if (enemy.hp <= 0) return enemy;
 
     const prevReverseTimer = enemy.reverseTimer;
     const newReverseTimer = Math.max(0, enemy.reverseTimer - dt);
-    // When reversal expires, grant immunity slightly longer than the Rose's cooldown (5s)
     const newReverseImmunity = prevReverseTimer > 0 && newReverseTimer === 0
       ? 7
       : Math.max(0, enemy.reverseImmunityTimer - dt);
 
     let e = {
       ...enemy,
-      slowTimer:             Math.max(0, enemy.slowTimer - dt),
-      poisonTimer:           Math.max(0, enemy.poisonTimer - dt),
-      stunTimer:             Math.max(0, enemy.stunTimer - dt),
-      reverseTimer:          newReverseTimer,
-      reverseImmunityTimer:  newReverseImmunity,
+      slowTimer:            Math.max(0, enemy.slowTimer - dt),
+      poisonTimer:          Math.max(0, enemy.poisonTimer - dt),
+      stunTimer:            Math.max(0, enemy.stunTimer - dt),
+      reverseTimer:         newReverseTimer,
+      reverseImmunityTimer: newReverseImmunity,
     };
 
-    // Apply poison damage (even while stunned)
+    // Apply poison even while stunned
     if (enemy.poisonTimer > 0) {
       e = applyDamageToEnemy(e, enemy.poisonDps * dt);
     }
 
-    if (e.stunTimer > 0) return e; // stunned: don't move, don't progress
+    if (e.stunTimer > 0) return e;
 
     const effectiveSpeed = enemy.slowTimer > 0 ? e.speed * e.activeSlowFactor : e.speed;
-    const direction = enemy.reverseTimer > 0 ? -1 : 1;
-    const newProgress = e.progress + effectiveSpeed * direction * dt;
+    const isReversing = enemy.reverseTimer > 0;
 
-    if (newProgress >= pathTiles.length - 1) {
-      // Reached the exit — mark as exited (not killed)
-      return { ...e, progress: pathTiles.length - 1, hp: 0, exited: true };
+    if (isReversing) {
+      // Move backwards within the current segment only; clamp at 0
+      const newProgress = Math.max(0, e.segmentProgress - effectiveSpeed * dt);
+      return { ...e, segmentProgress: newProgress };
     }
 
-    return { ...e, progress: Math.max(0, newProgress) };
+    // Move forward
+    const segment = map.segments.find(s => s.id === e.segmentId);
+    if (!segment) return e;
+
+    const newProgress = e.segmentProgress + effectiveSpeed * dt;
+    const newTotal = e.totalProgress + effectiveSpeed * dt;
+
+    if (newProgress >= segment.tiles.length - 1) {
+      // Reached end of this segment
+      if (segment.nextSegmentIds.length === 0) {
+        // Terminal segment — enemy exits
+        return {
+          ...e,
+          segmentProgress: segment.tiles.length - 1,
+          totalProgress: newTotal,
+          hp: 0,
+          exited: true,
+        };
+      }
+      // Pick a random next segment
+      const nextId = segment.nextSegmentIds[
+        Math.floor(Math.random() * segment.nextSegmentIds.length)
+      ];
+      return {
+        ...e,
+        segmentId: nextId,
+        segmentProgress: 0,
+        totalProgress: newTotal,
+      };
+    }
+
+    return { ...e, segmentProgress: newProgress, totalProgress: newTotal };
   });
 
   return { ...state, enemies };
@@ -167,14 +202,13 @@ function tickTowerAttacks(
   state: GameState,
   dt: number,
   config: GameConfig,
-  pathTiles: GridPos[],
+  map: MapDef,
 ): GameState {
   let enemies = [...state.enemies];
 
   const towers = state.towers.map(tower => {
     const stats = BASE_TOWER_STATS[tower.type];
 
-    // Sunflower handled separately
     if (tower.type === 'sunflower') return tower;
 
     const newCooldown = tower.cooldownTimer - dt * config.globalSpeedMultiplier;
@@ -184,7 +218,7 @@ function tickTowerAttacks(
     if (tower.type === 'beehive') range *= config.hiveRangeMultiplier;
 
     if (stats.aoe) {
-      const targets = findTargetsInRadius(tower.col, tower.row, range, enemies, pathTiles);
+      const targets = findTargetsInRadius(tower.col, tower.row, range, enemies, map);
       if (targets.length === 0) return tower;
 
       const damage = computeDamage(tower, config, false);
@@ -201,8 +235,7 @@ function tickTowerAttacks(
       return { ...tower, cooldownTimer: stats.cooldown / config.globalSpeedMultiplier };
     }
 
-    // Single target
-    const target = findTarget(tower, enemies, range, pathTiles);
+    const target = findTarget(tower, enemies, range, map);
     if (!target) return tower;
 
     const isCrit = tower.type === 'cactus' && Math.random() < config.cactusCritChance;
@@ -213,7 +246,9 @@ function tickTowerAttacks(
       let updated = damage > 0 ? applyDamageToEnemy(e, damage) : e;
       if (stats.poisonDps > 0)       updated = { ...updated, poisonTimer: stats.poisonDuration, poisonDps: stats.poisonDps };
       if (stats.stunDuration > 0)    updated = { ...updated, stunTimer: stats.stunDuration };
-      if (stats.reverseDuration > 0 && updated.reverseTimer <= 0 && updated.reverseImmunityTimer <= 0) updated = { ...updated, reverseTimer: stats.reverseDuration };
+      if (stats.reverseDuration > 0 && updated.reverseTimer <= 0 && updated.reverseImmunityTimer <= 0) {
+        updated = { ...updated, reverseTimer: stats.reverseDuration };
+      }
       if (stats.slowFactor > 0) {
         const slowDur = stats.slowDuration * config.sprinklerDurationMultiplier;
         updated = { ...updated, slowTimer: Math.max(updated.slowTimer, slowDur), activeSlowFactor: stats.slowFactor };
@@ -221,10 +256,9 @@ function tickTowerAttacks(
       return updated;
     });
 
-    // Watering can: chain slow to 2 more nearby enemies
     if (tower.type === 'watering_can') {
-      const ePos = getEnemyGridPos(target.progress, pathTiles);
-      const chainTargets = findTargetsInRadius(ePos.col, ePos.row, 2, enemies.filter(e => e.id !== target.id), pathTiles).slice(0, 2);
+      const ePos = getEnemyGridPos(target, map);
+      const chainTargets = findTargetsInRadius(ePos.col, ePos.row, 2, enemies.filter(e => e.id !== target.id), map).slice(0, 2);
       const chainIds = new Set(chainTargets.map(t => t.id));
       const slowDur = stats.slowDuration * config.sprinklerDurationMultiplier;
       enemies = enemies.map(e => {
@@ -258,19 +292,17 @@ function tickSunflowers(state: GameState, dt: number, config: GameConfig): GameS
 
 // ─── Collect dead/exited enemies ──────────────────────────────────────────────
 
-function collectDeadEnemies(state: GameState): GameState {
+function collectDeadEnemies(state: GameState, map: MapDef): GameState {
   let gold = state.gold;
   let enemiesKilledThisRun = state.enemiesKilledThisRun;
   let lives = state.lives;
 
   const survivors = state.enemies.filter(e => {
-    if (e.hp > 0) return true; // still alive
+    if (e.hp > 0) return true;
 
     if (e.exited) {
-      // Reached the exit — costs a life, no gold
       lives = Math.max(0, lives - 1);
     } else {
-      // Killed by a tower — award gold and count kill
       const stats = BASE_ENEMY_STATS[e.type];
       gold += stats.goldReward;
       enemiesKilledThisRun += 1;
@@ -278,12 +310,14 @@ function collectDeadEnemies(state: GameState): GameState {
     return false;
   });
 
-  const seedsThisRun = calculateSeeds(state.wave, enemiesKilledThisRun);
+  const seedsThisRun = Math.floor(
+    calculateSeeds(state.wave, enemiesKilledThisRun) * map.seedMultiplier
+  );
 
   return { ...state, enemies: survivors, gold, lives, enemiesKilledThisRun, seedsThisRun };
 }
 
-// ─── Prep phase ───────────────────────────────────────────────────────────────
+// ─── Phase ticks ─────────────────────────────────────────────────────────────
 
 export function tickPrep(state: GameState, dt: number): GameState {
   const prepTimer = state.prepTimer - dt;
@@ -298,8 +332,6 @@ export function tickPrep(state: GameState, dt: number): GameState {
   }
   return { ...state, prepTimer };
 }
-
-// ─── Wave countdown ───────────────────────────────────────────────────────────
 
 export function tickWaveCountdown(state: GameState, dt: number): GameState {
   const waveCountdownTimer = state.waveCountdownTimer - dt;
@@ -317,13 +349,13 @@ export function tickWaveCountdown(state: GameState, dt: number): GameState {
   return { ...state, waveCountdownTimer };
 }
 
-// ─── Main tick entry point ────────────────────────────────────────────────────
+// ─── Main tick ────────────────────────────────────────────────────────────────
 
 export function tick(
   state: GameState,
   dt: number,
   config: GameConfig,
-  pathTiles: GridPos[],
+  map: MapDef,
 ): GameState {
   if (state.lives <= 0 && state.phase !== 'run_end') {
     return { ...state, phase: 'run_end' };
@@ -333,11 +365,11 @@ export function tick(
   if (state.phase === 'wave_countdown') return tickWaveCountdown(state, dt);
 
   if (state.phase === 'wave') {
-    let s = spawnDueEnemies(state, dt);
-    s = tickEnemyMovement(s, dt, pathTiles);
-    s = tickTowerAttacks(s, dt, config, pathTiles);
+    let s = spawnDueEnemies(state, dt, map);
+    s = tickEnemyMovement(s, dt, map);
+    s = tickTowerAttacks(s, dt, config, map);
     s = tickSunflowers(s, dt, config);
-    s = collectDeadEnemies(s);
+    s = collectDeadEnemies(s, map);
 
     if (s.lives <= 0) return { ...s, phase: 'run_end' };
 
