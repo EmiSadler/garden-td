@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPathTiles, isTileOnPath, getEnemyPixelPos, PATH_WAYPOINTS } from '../mapData';
+import { getPathTiles, isTileOnPath, PATH_WAYPOINTS } from '../mapData';
 
 describe('getPathTiles', () => {
   it('starts at the first waypoint', () => {
@@ -41,25 +41,5 @@ describe('isTileOnPath', () => {
   it('returns false for a grass tile', () => {
     const tiles = getPathTiles(PATH_WAYPOINTS);
     expect(isTileOnPath(0, 0, tiles)).toBe(false);
-  });
-});
-
-describe('getEnemyPixelPos', () => {
-  it('returns position at start of path for progress 0', () => {
-    const tiles = getPathTiles(PATH_WAYPOINTS);
-    const tileSize = 48;
-    const pos = getEnemyPixelPos(0, tiles, tileSize);
-    expect(pos.x).toBe(tiles[0].col * tileSize + tileSize / 2);
-    expect(pos.y).toBe(tiles[0].row * tileSize + tileSize / 2);
-  });
-
-  it('interpolates between tiles', () => {
-    const tiles = getPathTiles(PATH_WAYPOINTS);
-    const tileSize = 48;
-    const pos = getEnemyPixelPos(0.5, tiles, tileSize);
-    const midX = ((tiles[0].col + tiles[1].col) / 2) * tileSize + tileSize / 2;
-    const midY = ((tiles[0].row + tiles[1].row) / 2) * tileSize + tileSize / 2;
-    expect(pos.x).toBeCloseTo(midX);
-    expect(pos.y).toBeCloseTo(midY);
   });
 });

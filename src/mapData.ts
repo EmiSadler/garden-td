@@ -1,15 +1,17 @@
 import type { GridPos } from './types';
 
-// S-curve path: entry left, exit right
+// PATH_WAYPOINTS kept for Map 1 reference and test compatibility
 export const PATH_WAYPOINTS: GridPos[] = [
-  { col: 0,  row: 2  }, // entry
-  { col: 4,  row: 2  }, // turn 1
-  { col: 4,  row: 9  }, // turn 2
-  { col: 15, row: 9  }, // turn 3
-  { col: 15, row: 2  }, // turn 4
-  { col: 19, row: 2  }, // exit (garden heart)
+  { col: 0,  row: 2  },
+  { col: 4,  row: 2  },
+  { col: 4,  row: 9  },
+  { col: 15, row: 9  },
+  { col: 15, row: 2  },
+  { col: 19, row: 2  },
 ];
 
+// Expand an ordered list of waypoints into individual step-by-step tiles.
+// Used by maps.ts to build PathSegment tile arrays.
 export function getPathTiles(waypoints: GridPos[]): GridPos[] {
   const tiles: GridPos[] = [];
   for (let i = 0; i < waypoints.length - 1; i++) {
@@ -33,27 +35,4 @@ export function getPathTiles(waypoints: GridPos[]): GridPos[] {
 
 export function isTileOnPath(col: number, row: number, pathTiles: GridPos[]): boolean {
   return pathTiles.some(t => t.col === col && t.row === row);
-}
-
-export function getEnemyPixelPos(
-  progress: number,
-  pathTiles: GridPos[],
-  tileSize: number,
-): { x: number; y: number } {
-  const idx = Math.max(0, Math.min(Math.floor(progress), pathTiles.length - 2));
-  const frac = progress - idx;
-  const from = pathTiles[idx];
-  const to = pathTiles[Math.min(idx + 1, pathTiles.length - 1)];
-  return {
-    x: (from.col + (to.col - from.col) * frac) * tileSize + tileSize / 2,
-    y: (from.row + (to.row - from.row) * frac) * tileSize + tileSize / 2,
-  };
-}
-
-// Pre-computed path tiles and fast lookup — used throughout the app
-export const PATH_TILES = getPathTiles(PATH_WAYPOINTS);
-export const PATH_TILE_SET = new Set(PATH_TILES.map(t => `${t.col},${t.row}`));
-
-export function isTileOnPathFast(col: number, row: number): boolean {
-  return PATH_TILE_SET.has(`${col},${row}`);
 }
