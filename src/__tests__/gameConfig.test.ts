@@ -11,6 +11,7 @@ describe('computeGameConfig', () => {
       ['thorn_bush', 'beehive', 'sunflower', 'sprinkler', 'cactus']
     );
     expect(config.globalDamageMultiplier).toBe(1.0);
+    expect(config.unlockedMapIds).toEqual([1]);
   });
 
   it('applies compost: +30 extra gold', () => {

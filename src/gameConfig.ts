@@ -45,6 +45,7 @@ export function computeGameConfig(unlocked: Set<string>): GameConfig {
     cactusCritChance: 0,
     startingFreeThorn: false,
     unlockedTowers: [...BASE_UNLOCKED_TOWERS],
+    unlockedMapIds: [1],
   };
 
   if (unlocked.has('sharp_thorns'))   config.thornDamageMultiplier *= 1.25;
