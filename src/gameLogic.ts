@@ -291,10 +291,11 @@ function tickSunflowers(state: GameState, dt: number, config: GameConfig): GameS
 
 // ─── Collect dead/exited enemies ──────────────────────────────────────────────
 
-function collectDeadEnemies(state: GameState, map: MapDef): GameState {
+export function collectDeadEnemies(state: GameState, map: MapDef, config: GameConfig): GameState {
   let gold = state.gold;
   let enemiesKilledThisRun = state.enemiesKilledThisRun;
   let lives = state.lives;
+  let petalsThisRun = state.petalsThisRun;
 
   const survivors = state.enemies.filter(e => {
     if (e.hp > 0) return true;
@@ -305,6 +306,9 @@ function collectDeadEnemies(state: GameState, map: MapDef): GameState {
       const stats = BASE_ENEMY_STATS[e.type];
       gold += stats.goldReward;
       enemiesKilledThisRun += 1;
+      if (e.type === 'boss_snail') {
+        petalsThisRun += Math.round(config.bossDropsPetals * map.petalMultiplier);
+      }
     }
     return false;
   });
@@ -313,7 +317,7 @@ function collectDeadEnemies(state: GameState, map: MapDef): GameState {
     calculateSeeds(state.wave, enemiesKilledThisRun) * map.seedMultiplier
   );
 
-  return { ...state, enemies: survivors, gold, lives, enemiesKilledThisRun, seedsThisRun };
+  return { ...state, enemies: survivors, gold, lives, enemiesKilledThisRun, seedsThisRun, petalsThisRun };
 }
 
 // ─── Phase ticks ─────────────────────────────────────────────────────────────
@@ -368,7 +372,7 @@ export function tick(
     s = tickEnemyMovement(s, dt, map);
     s = tickTowerAttacks(s, dt, config, map);
     s = tickSunflowers(s, dt, config);
-    s = collectDeadEnemies(s, map);
+    s = collectDeadEnemies(s, map, config);
 
     if (s.lives <= 0) return { ...s, phase: 'run_end' };
 

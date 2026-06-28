@@ -1,8 +1,33 @@
 import { describe, it, expect } from 'vitest';
-import { findTarget, getEnemyGridPos, applyDamageToEnemy, makePlacedTower, makeEnemy } from '../gameLogic';
+import { findTarget, getEnemyGridPos, applyDamageToEnemy, makePlacedTower, makeEnemy, collectDeadEnemies } from '../gameLogic';
 import { getMapById } from '../maps';
+import { computeGameConfig } from '../gameConfig';
+import type { GameState } from '../types';
 
 const MAP1 = getMapById(1);
+const BASE_CONFIG = computeGameConfig(new Set());
+
+function makeMinimalState(overrides: Partial<GameState> = {}): GameState {
+  return {
+    phase: 'wave',
+    mapId: 1,
+    wave: 1,
+    gold: 200,
+    lives: 3,
+    enemiesKilledThisRun: 0,
+    seedsThisRun: 0,
+    petalsThisRun: 0,
+    enemies: [],
+    towers: [],
+    pendingSpawns: [],
+    spawnTimer: 0,
+    prepTimer: 0,
+    waveCountdownTimer: 0,
+    selectedTowerType: null,
+    selectedTowerId: null,
+    ...overrides,
+  };
+}
 const ENTRY_SEG = MAP1.entrySegmentId; // 'garden_main'
 
 describe('getEnemyGridPos', () => {
@@ -60,5 +85,44 @@ describe('applyDamageToEnemy', () => {
     const enemy = makeEnemy('caterpillar', ENTRY_SEG);
     const result = applyDamageToEnemy(enemy, 9999);
     expect(result.hp).toBe(0);
+  });
+});
+
+describe('collectDeadEnemies', () => {
+  it('awards 1 petal when a boss_snail is killed (not exited)', () => {
+    const boss = { ...makeEnemy('boss_snail', ENTRY_SEG), hp: 0, exited: false };
+    const state = makeMinimalState({ enemies: [boss] });
+    const next = collectDeadEnemies(state, MAP1, BASE_CONFIG);
+    expect(next.petalsThisRun).toBe(1);
+  });
+
+  it('does not award a petal when boss_snail exits', () => {
+    const boss = { ...makeEnemy('boss_snail', ENTRY_SEG), hp: 0, exited: true };
+    const state = makeMinimalState({ enemies: [boss] });
+    const next = collectDeadEnemies(state, MAP1, BASE_CONFIG);
+    expect(next.petalsThisRun).toBe(0);
+  });
+
+  it('awards 2 petals with boss_bounty config', () => {
+    const bossConfig = { ...BASE_CONFIG, bossDropsPetals: 2 };
+    const boss = { ...makeEnemy('boss_snail', ENTRY_SEG), hp: 0, exited: false };
+    const state = makeMinimalState({ enemies: [boss] });
+    const next = collectDeadEnemies(state, MAP1, bossConfig);
+    expect(next.petalsThisRun).toBe(2);
+  });
+
+  it('rounds petals with map petalMultiplier applied', () => {
+    const MAP3 = getMapById(3);
+    const boss = { ...makeEnemy('boss_snail', 'cross_entry'), hp: 0, exited: false };
+    const state = makeMinimalState({ enemies: [boss] });
+    const next = collectDeadEnemies(state, MAP3, BASE_CONFIG);
+    expect(next.petalsThisRun).toBe(Math.round(1 * MAP3.petalMultiplier));
+  });
+
+  it('does not award petals for non-boss kills', () => {
+    const caterpillar = { ...makeEnemy('caterpillar', ENTRY_SEG), hp: 0, exited: false };
+    const state = makeMinimalState({ enemies: [caterpillar] });
+    const next = collectDeadEnemies(state, MAP1, BASE_CONFIG);
+    expect(next.petalsThisRun).toBe(0);
   });
 });
