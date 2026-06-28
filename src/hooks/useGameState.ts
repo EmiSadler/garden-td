@@ -24,7 +24,7 @@ function buildInitialState(config: GameConfig, mapId: number): GameState {
       const { dCol, dRow } = FREE_TOWER_SLOTS[slotIdx++];
       const col = entryTile.col + dCol;
       const row = entryTile.row + dRow;
-      if (col < 20 && row >= 0 && row < 12 && !pathSet.has(`${col},${row}`)) {
+      if (col >= 0 && col < 20 && row >= 0 && row < 12 && !pathSet.has(`${col},${row}`)) {
         initialTowers.push(makePlacedTower(type, col, row));
         break;
       }

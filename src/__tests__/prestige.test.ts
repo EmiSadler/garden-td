@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePrestigeConfig, canUnlockPrestigeNode, PRESTIGE_NODES } from '../gameConfig';
+import { computePrestigeConfig, canUnlockPrestigeNode, computeGameConfig, PRESTIGE_NODES } from '../gameConfig';
 
 describe('PRESTIGE_NODES', () => {
   it('has 16 nodes', () => {
@@ -124,16 +124,32 @@ describe('canUnlockPrestigeNode', () => {
   });
 });
 
-describe('prestige kept seeds calculation', () => {
+describe('prestige kept seeds calculation via computePrestigeConfig', () => {
   it('keeps 0 seeds with no seed savings', () => {
-    expect(Math.floor(100 * 0)).toBe(0);
+    const c = computePrestigeConfig(new Set());
+    expect(Math.floor(100 * c.seedSavingsRate)).toBe(0);
   });
 
-  it('keeps 15% of seeds with seed_savings_1', () => {
-    expect(Math.floor(100 * 0.15)).toBe(15);
+  it('keeps 15 of 100 seeds with seed_savings_1', () => {
+    const c = computePrestigeConfig(new Set(['seed_savings_1']));
+    expect(Math.floor(100 * c.seedSavingsRate)).toBe(15);
   });
 
-  it('keeps 50% of seeds with seed_savings_3, floor applied', () => {
-    expect(Math.floor(99 * 0.50)).toBe(49);
+  it('keeps 49 of 99 seeds with seed_savings_3 (floor applied)', () => {
+    const c = computePrestigeConfig(new Set(['seed_savings_1', 'seed_savings_2', 'seed_savings_3']));
+    expect(Math.floor(99 * c.seedSavingsRate)).toBe(49);
+  });
+});
+
+describe('computeGameConfig — prestige and tech interaction', () => {
+  it('early_bloom does not overwrite master_bloomer bonus (both give 20s)', () => {
+    const prestige = computePrestigeConfig(new Set(['master_bloomer']));
+    const config = computeGameConfig(new Set(['early_bloom']), prestige);
+    expect(config.prepTime).toBe(20);
+  });
+
+  it('early_bloom alone gives prepTime 20', () => {
+    const config = computeGameConfig(new Set(['early_bloom']));
+    expect(config.prepTime).toBe(20);
   });
 });

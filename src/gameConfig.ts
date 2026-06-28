@@ -96,8 +96,9 @@ export function computePrestigeConfig(unlocked: Set<string>): PrestigeConfig {
 export function canUnlockPrestigeNode(nodeId: string, unlocked: Set<string>, petals: number): boolean {
   const node = PRESTIGE_NODES.find(n => n.id === nodeId);
   if (!node || unlocked.has(nodeId) || petals < node.cost) return false;
-  if (node.requiresAny) return node.requiresAny.some(r => unlocked.has(r));
-  return node.requires.every(r => unlocked.has(r));
+  const andSatisfied = node.requires.every(r => unlocked.has(r));
+  const orSatisfied = !node.requiresAny || node.requiresAny.some(r => unlocked.has(r));
+  return andSatisfied && orSatisfied;
 }
 
 export function computeGameConfig(
@@ -147,7 +148,7 @@ export function computeGameConfig(
   if (techUnlocked.has('ancient_growth')) config.unlockedTowers.push('oak_tree');
   if (techUnlocked.has('compost'))        config.extraGold += 30;
   if (techUnlocked.has('tough_roots'))    config.extraLives += 1;
-  if (techUnlocked.has('early_bloom'))    config.prepTime = 20;
+  if (techUnlocked.has('early_bloom'))    config.prepTime = Math.max(config.prepTime, 20);
   if (techUnlocked.has('fertile_soil'))   config.costMultiplier *= 0.9;
   if (techUnlocked.has('morning_dew'))    config.globalSpeedMultiplier *= 1.15;
   if (techUnlocked.has('full_garden'))    config.startingFreeTowers.push('thorn_bush');
