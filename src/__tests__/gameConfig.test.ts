@@ -77,6 +77,7 @@ describe('PrestigeConfig type', () => {
       techNodeCostMultiplier: 1.0,
       startingFreeTowers: [],
       unlockedMapIds: [1],
+      slowMotionUnlocked: false,
     };
     expect(p.bossDropsPetals).toBe(1);
   });

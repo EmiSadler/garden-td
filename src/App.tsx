@@ -24,7 +24,7 @@ export default function App() {
   const [selectedMapId, setSelectedMapId] = useState<number | null>(
     gameConfig.unlockedMapIds.length === 1 ? 1 : null
   );
-  const { state, map, selectTowerType, placeTower, selectTower, sellTower, restartRun } =
+  const { state, map, speed, setSpeed, selectTowerType, placeTower, selectTower, sellTower, restartRun } =
     useGameState(gameConfig, selectedMapId ?? 1);
 
   const [showTechTree, setShowTechTree] = useState(false);
@@ -105,6 +105,9 @@ export default function App() {
         <HUD
           state={state}
           totalPetals={prestigeState.petals}
+          speed={speed}
+          slowMotionUnlocked={prestigeConfig.slowMotionUnlocked}
+          onSetSpeed={setSpeed}
           onPrestige={handlePrestigeClick}
         />
 

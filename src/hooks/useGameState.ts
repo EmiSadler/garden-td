@@ -60,6 +60,12 @@ export function useGameState(config: GameConfig, mapId: number) {
   const lastTimeRef = useRef<number | undefined>(undefined);
   const configRef = useRef(config);
   configRef.current = config;
+  const speedRef = useRef(1);
+  const [speed, setSpeedState] = useState(1);
+  const setSpeed = useCallback((s: number) => {
+    speedRef.current = s;
+    setSpeedState(s);
+  }, []);
 
   useEffect(() => {
     mapRef.current = getMapById(mapId);
@@ -69,7 +75,7 @@ export function useGameState(config: GameConfig, mapId: number) {
   useEffect(() => {
     const loop = (time: number) => {
       const dt = lastTimeRef.current !== undefined
-        ? Math.min((time - lastTimeRef.current) / 1000, 0.05)
+        ? Math.min((time - lastTimeRef.current) / 1000, 0.05) * speedRef.current
         : 0;
       lastTimeRef.current = time;
 
@@ -143,6 +149,8 @@ export function useGameState(config: GameConfig, mapId: number) {
   return {
     state: stateRef.current,
     map: mapRef.current,
+    speed,
+    setSpeed,
     selectTowerType,
     placeTower,
     selectTower,

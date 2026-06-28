@@ -14,6 +14,7 @@ export const DEFAULT_PRESTIGE_CONFIG: PrestigeConfig = {
   techNodeCostMultiplier: 1.0,
   startingFreeTowers: [],
   unlockedMapIds: [1],
+  slowMotionUnlocked: false,
 };
 
 export const TECH_NODES: TechNode[] = [
@@ -56,6 +57,7 @@ export const PRESTIGE_NODES: PrestigeNode[] = [
   { id: 'boss_bounty',      cluster: 'bonuses', name: 'Boss Bounty',      description: 'Bosses drop 2 petals instead of 1',    cost: 5,  requires: ['unlock_map2']                          },
   { id: 'quick_study',      cluster: 'bonuses', name: 'Quick Study',      description: 'Tech tree nodes cost 10% fewer seeds', cost: 4,  requires: ['seed_savings_1']                       },
   { id: 'master_bloomer',   cluster: 'bonuses', name: 'Master Bloomer',   description: '+10s prep time permanently',            cost: 2,  requires: []                                       },
+  { id: 'slow_motion',      cluster: 'bonuses', name: 'Slow Motion',      description: 'Unlock ⅓× speed control in the HUD',   cost: 3,  requires: []                                       },
   // Legacy towers cluster
   { id: 'legacy_beehive',   cluster: 'legacy',  name: 'Legacy Beehive',   description: 'Start each run with a free 🍯',       cost: 4,  requires: ['ancient_soil']                         },
   { id: 'legacy_sprinkler', cluster: 'legacy',  name: 'Legacy Sprinkler', description: 'Start each run with a free 💧',       cost: 4,  requires: ['iron_roots']                           },
@@ -89,6 +91,8 @@ export function computePrestigeConfig(unlocked: Set<string>): PrestigeConfig {
   if (unlocked.has('unlock_map2')) config.unlockedMapIds.push(2);
   if (unlocked.has('unlock_map3')) config.unlockedMapIds.push(3);
   if (unlocked.has('unlock_map4')) config.unlockedMapIds.push(4);
+
+  if (unlocked.has('slow_motion')) config.slowMotionUnlocked = true;
 
   return config;
 }

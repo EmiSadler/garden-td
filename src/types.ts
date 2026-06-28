@@ -168,4 +168,5 @@ export interface PrestigeConfig {
   techNodeCostMultiplier: number;
   startingFreeTowers: TowerType[];
   unlockedMapIds: number[];
+  slowMotionUnlocked: boolean;
 }

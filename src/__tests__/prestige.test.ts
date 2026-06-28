@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { computePrestigeConfig, canUnlockPrestigeNode, computeGameConfig, PRESTIGE_NODES } from '../gameConfig';
 
 describe('PRESTIGE_NODES', () => {
-  it('has 16 nodes', () => {
-    expect(PRESTIGE_NODES).toHaveLength(16);
+  it('has 17 nodes', () => {
+    expect(PRESTIGE_NODES).toHaveLength(17);
   });
 
   it('includes unlock_map2 with no prerequisites', () => {
