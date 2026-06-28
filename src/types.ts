@@ -122,9 +122,11 @@ export interface GameConfig {
   sunflowerIncomeMultiplier: number;
   sprinklerDurationMultiplier: number;
   cactusCritChance: number;
-  startingFreeThorn: boolean;
+  startingFreeTowers: TowerType[];
+  bossDropsPetals: number;
+  techNodeCostMultiplier: number;
   unlockedTowers: TowerType[];
-  unlockedMapIds: number[];  // which maps the player can choose (starts as [1])
+  unlockedMapIds: number[];
 }
 
 export interface TechNode {
@@ -139,4 +141,31 @@ export interface TechNode {
 export interface TechTreeState {
   seeds: number;
   unlocked: Set<string>;
+}
+
+export interface PrestigeNode {
+  id: string;
+  cluster: 'maps' | 'seeds' | 'bonuses' | 'legacy';
+  name: string;
+  description: string;
+  cost: number;
+  requires: string[];
+  requiresAny?: string[];
+}
+
+export interface PrestigeTreeState {
+  petals: number;
+  unlocked: Set<string>;
+}
+
+export interface PrestigeConfig {
+  seedSavingsRate: number;
+  permanentExtraLives: number;
+  permanentCostMultiplier: number;
+  permanentDamageMultiplier: number;
+  bossDropsPetals: number;
+  permanentPrepTimeBonus: number;
+  techNodeCostMultiplier: number;
+  startingFreeTowers: TowerType[];
+  unlockedMapIds: number[];
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeGameConfig, canUnlockNode, TECH_NODES } from '../gameConfig';
+import type { PrestigeConfig } from '../types';
 
 describe('computeGameConfig', () => {
   it('returns base values with empty unlock set', () => {
@@ -53,6 +54,23 @@ describe('canUnlockNode', () => {
 
   it('allows second node when first is unlocked', () => {
     expect(canUnlockNode('bigger_hive', new Set(['sharp_thorns']))).toBe(true);
+  });
+});
+
+describe('PrestigeConfig type', () => {
+  it('can construct a default PrestigeConfig', () => {
+    const p: PrestigeConfig = {
+      seedSavingsRate: 0,
+      permanentExtraLives: 0,
+      permanentCostMultiplier: 1.0,
+      permanentDamageMultiplier: 1.0,
+      bossDropsPetals: 1,
+      permanentPrepTimeBonus: 0,
+      techNodeCostMultiplier: 1.0,
+      startingFreeTowers: [],
+      unlockedMapIds: [1],
+    };
+    expect(p.bossDropsPetals).toBe(1);
   });
 });
 
