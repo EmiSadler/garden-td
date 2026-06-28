@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTechTree } from './hooks/useTechTree';
 import { useGameState } from './hooks/useGameState';
+import { usePrestige } from './hooks/usePrestige';
+import { computeGameConfig, computePrestigeConfig } from './gameConfig';
 import GameBoard from './components/GameBoard';
 import HUD from './components/HUD';
 import TowerPanel from './components/TowerPanel';
@@ -8,9 +10,17 @@ import TowerInfoModal from './components/TowerInfoModal';
 import RunEndOverlay from './components/RunEndOverlay';
 import TechTreeOverlay from './components/TechTreeOverlay';
 import MapSelectScreen from './components/MapSelectScreen';
+import PrestigeOverlay from './components/PrestigeOverlay';
+
+type PrestigeOverlayMode = 'confirm' | 'tree' | null;
 
 export default function App() {
-  const { techTree, gameConfig, addSeeds, unlockNode } = useTechTree();
+  const { prestigeState, addPetals, unlockPrestigeNode, prestige } = usePrestige();
+  const prestigeConfig = computePrestigeConfig(prestigeState.unlocked);
+
+  const { techTree, addSeeds, unlockNode, resetWithSeeds } = useTechTree(prestigeConfig.techNodeCostMultiplier);
+  const gameConfig = computeGameConfig(techTree.unlocked, prestigeConfig);
+
   const [selectedMapId, setSelectedMapId] = useState<number | null>(
     gameConfig.unlockedMapIds.length === 1 ? 1 : null
   );
@@ -20,6 +30,15 @@ export default function App() {
   const [showTechTree, setShowTechTree] = useState(false);
   const [techTreeOpenedFromRunEnd, setTechTreeOpenedFromRunEnd] = useState(false);
   const [seedsAwarded, setSeedsAwarded] = useState(false);
+  const [petalsAwarded, setPetalsAwarded] = useState(false);
+  const [prestigeOverlayMode, setPrestigeOverlayMode] = useState<PrestigeOverlayMode>(null);
+
+  const awardRunRewards = useCallback(() => {
+    if (!seedsAwarded) { addSeeds(state.seedsThisRun); setSeedsAwarded(true); }
+    if (!petalsAwarded) { addPetals(state.petalsThisRun); setPetalsAwarded(true); }
+  }, [seedsAwarded, petalsAwarded, state.seedsThisRun, state.petalsThisRun, addSeeds, addPetals]);
+
+  const resetRunRewards = () => { setSeedsAwarded(false); setPetalsAwarded(false); };
 
   if (selectedMapId === null) {
     return (
@@ -35,14 +54,14 @@ export default function App() {
     : undefined;
 
   const handleOpenTechTree = () => {
-    if (!seedsAwarded) { addSeeds(state.seedsThisRun); setSeedsAwarded(true); }
+    awardRunRewards();
     setTechTreeOpenedFromRunEnd(true);
     setShowTechTree(true);
   };
 
   const handleRestartRun = () => {
-    if (!seedsAwarded) { addSeeds(state.seedsThisRun); setSeedsAwarded(true); }
-    setSeedsAwarded(false);
+    awardRunRewards();
+    resetRunRewards();
     if (gameConfig.unlockedMapIds.length > 1) {
       setSelectedMapId(null);
     } else {
@@ -52,9 +71,9 @@ export default function App() {
 
   const handleCloseTechTree = () => {
     setShowTechTree(false);
-    setTechTreeOpenedFromRunEnd(false);
     if (techTreeOpenedFromRunEnd) {
-      setSeedsAwarded(false);
+      setTechTreeOpenedFromRunEnd(false);
+      resetRunRewards();
       if (gameConfig.unlockedMapIds.length > 1) {
         setSelectedMapId(null);
       } else {
@@ -63,10 +82,31 @@ export default function App() {
     }
   };
 
+  const handlePrestigeClick = () => setPrestigeOverlayMode('confirm');
+
+  const handlePrestigeConfirm = () => {
+    addPetals(state.petalsThisRun);
+    setPetalsAwarded(true);
+    const keptSeeds = prestige(techTree.seeds);
+    resetWithSeeds(keptSeeds);
+    setPrestigeOverlayMode('tree');
+  };
+
+  const handlePrestigeContinue = () => {
+    setPrestigeOverlayMode(null);
+    resetRunRewards();
+    setSelectedMapId(null);
+    restartRun(undefined);
+  };
+
   return (
     <div className="min-h-screen bg-green-900 flex flex-col items-center justify-center p-4">
       <div className="relative flex flex-col" style={{ border: '2px solid #166534', borderRadius: 8 }}>
-        <HUD state={state} />
+        <HUD
+          state={state}
+          totalPetals={prestigeState.petals}
+          onPrestige={handlePrestigeClick}
+        />
 
         <div className="relative">
           <GameBoard
@@ -93,6 +133,7 @@ export default function App() {
               wave={state.wave}
               enemiesKilled={state.enemiesKilledThisRun}
               seedsEarned={state.seedsThisRun}
+              petalsEarned={state.petalsThisRun}
               onOpenTechTree={handleOpenTechTree}
               onRestart={handleRestartRun}
             />
@@ -114,6 +155,12 @@ export default function App() {
         >
           🌱 Tech Tree ({techTree.seeds} seeds)
         </button>
+        <button
+          onClick={() => setPrestigeOverlayMode('tree')}
+          className="text-pink-400 hover:text-pink-200 text-sm underline"
+        >
+          🌸 Prestige Tree ({prestigeState.petals} petals)
+        </button>
         {gameConfig.unlockedMapIds.length > 1 && (
           <button
             onClick={() => setSelectedMapId(null)}
@@ -127,8 +174,23 @@ export default function App() {
       {showTechTree && (
         <TechTreeOverlay
           techTree={techTree}
+          techNodeCostMultiplier={prestigeConfig.techNodeCostMultiplier}
           onUnlock={unlockNode}
           onClose={handleCloseTechTree}
+        />
+      )}
+
+      {prestigeOverlayMode !== null && (
+        <PrestigeOverlay
+          mode={prestigeOverlayMode}
+          currentSeeds={techTree.seeds}
+          petalsThisRun={petalsAwarded ? 0 : state.petalsThisRun}
+          prestigeState={prestigeState}
+          prestigeConfig={prestigeConfig}
+          onConfirm={handlePrestigeConfirm}
+          onCancel={() => setPrestigeOverlayMode(null)}
+          onUnlockNode={unlockPrestigeNode}
+          onContinue={handlePrestigeContinue}
         />
       )}
     </div>

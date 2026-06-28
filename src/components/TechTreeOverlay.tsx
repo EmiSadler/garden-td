@@ -3,6 +3,7 @@ import { TECH_NODES, canUnlockNode } from '../gameConfig';
 
 interface Props {
   techTree: TechTreeState;
+  techNodeCostMultiplier: number;
   onUnlock: (nodeId: string) => void;
   onClose: () => void;
 }
@@ -13,7 +14,7 @@ const BRANCH_LABELS: Record<string, string> = {
   garden:  '☀️ Garden — Run Bonuses',
 };
 
-export default function TechTreeOverlay({ techTree, onUnlock, onClose }: Props) {
+export default function TechTreeOverlay({ techTree, techNodeCostMultiplier, onUnlock, onClose }: Props) {
   const branches = ['roots', 'species', 'garden'] as const;
 
   return (
@@ -46,7 +47,8 @@ export default function TechTreeOverlay({ techTree, onUnlock, onClose }: Props) 
                 {nodes.map(node => {
                   const isUnlocked = techTree.unlocked.has(node.id);
                   const canUnlock = !isUnlocked && canUnlockNode(node.id, techTree.unlocked);
-                  const affordable = canUnlock && techTree.seeds >= node.cost;
+                  const discountedCost = Math.round(node.cost * techNodeCostMultiplier);
+                  const affordable = canUnlock && techTree.seeds >= discountedCost;
 
                   return (
                     <div
@@ -66,7 +68,7 @@ export default function TechTreeOverlay({ techTree, onUnlock, onClose }: Props) 
                         </span>
                         {!isUnlocked && (
                           <span className={`text-xs font-bold ${affordable ? 'text-yellow-400' : 'text-green-600'}`}>
-                            🌱 {node.cost}
+                            🌱 {discountedCost}
                           </span>
                         )}
                       </div>

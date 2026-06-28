@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { TechTreeState } from '../types';
-import { TECH_NODES, computeGameConfig, canUnlockNode, DEFAULT_PRESTIGE_CONFIG } from '../gameConfig';
+import { TECH_NODES, canUnlockNode } from '../gameConfig';
 
 const STORAGE_KEY = 'garden_td_tech_tree';
 
@@ -58,8 +58,5 @@ export function useTechTree(techNodeCostMultiplier = 1.0) {
     });
   }, []);
 
-  // Uses DEFAULT_PRESTIGE_CONFIG; App.tsx overrides with real prestige config in Task 9
-  const gameConfig = computeGameConfig(techTree.unlocked, DEFAULT_PRESTIGE_CONFIG);
-
-  return { techTree, gameConfig, addSeeds, unlockNode, resetWithSeeds };
+  return { techTree, addSeeds, unlockNode, resetWithSeeds };
 }

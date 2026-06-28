@@ -2,11 +2,12 @@ interface Props {
   wave: number;
   enemiesKilled: number;
   seedsEarned: number;
+  petalsEarned: number;
   onOpenTechTree: () => void;
   onRestart: () => void;
 }
 
-export default function RunEndOverlay({ wave, enemiesKilled, seedsEarned, onOpenTechTree, onRestart }: Props) {
+export default function RunEndOverlay({ wave, enemiesKilled, seedsEarned, petalsEarned, onOpenTechTree, onRestart }: Props) {
   return (
     <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/60">
       <div className="bg-green-950 border border-green-700 rounded-2xl p-8 text-white text-center space-y-4 w-80">
@@ -19,6 +20,12 @@ export default function RunEndOverlay({ wave, enemiesKilled, seedsEarned, onOpen
           <p className="text-xs text-green-400 uppercase tracking-widest mb-1">Seeds earned</p>
           <p className="text-3xl font-bold">🌱 {seedsEarned}</p>
         </div>
+        {petalsEarned > 0 && (
+          <div className="bg-pink-950 border border-pink-800 rounded-xl py-2 px-4">
+            <p className="text-xs text-pink-400 uppercase tracking-widest mb-1">Prestige Petals</p>
+            <p className="text-2xl font-bold text-pink-300">🌸 {petalsEarned}</p>
+          </div>
+        )}
         <div className="flex gap-3 pt-2">
           <button
             onClick={onOpenTechTree}
