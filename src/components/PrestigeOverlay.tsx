@@ -3,6 +3,7 @@ import { PRESTIGE_NODES, canUnlockPrestigeNode } from '../gameConfig';
 
 interface Props {
   mode: 'confirm' | 'tree';
+  isPostPrestige: boolean;
   currentSeeds: number;
   petalsThisRun: number;
   prestigeState: PrestigeTreeState;
@@ -27,7 +28,7 @@ function ConfirmView({
   prestigeConfig,
   onConfirm,
   onCancel,
-}: Omit<Props, 'mode' | 'onUnlockNode' | 'onContinue'>) {
+}: Omit<Props, 'mode' | 'isPostPrestige' | 'onUnlockNode' | 'onContinue'>) {
   const keptSeeds = Math.floor(currentSeeds * prestigeConfig.seedSavingsRate);
   const lostSeeds = currentSeeds - keptSeeds;
   const totalPetalsAfter = prestigeState.petals + petalsThisRun;
@@ -79,10 +80,12 @@ function ConfirmView({
 }
 
 function TreeView({
+  isPostPrestige,
   prestigeState,
   onUnlockNode,
   onContinue,
-}: Pick<Props, 'prestigeState' | 'onUnlockNode' | 'onContinue'>) {
+  onCancel,
+}: Pick<Props, 'isPostPrestige' | 'prestigeState' | 'onUnlockNode' | 'onContinue' | 'onCancel'>) {
   const clusters: PrestigeNode['cluster'][] = ['maps', 'seeds', 'bonuses', 'legacy'];
 
   return (
@@ -95,12 +98,21 @@ function TreeView({
           </div>
           <div className="flex items-center gap-4">
             <span className="text-white font-bold text-lg">🌸 {prestigeState.petals} petals</span>
-            <button
-              onClick={onContinue}
-              className="bg-pink-700 hover:bg-pink-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
-            >
-              Continue →
-            </button>
+            {isPostPrestige ? (
+              <button
+                onClick={onContinue}
+                className="bg-pink-700 hover:bg-pink-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                Continue →
+              </button>
+            ) : (
+              <button
+                onClick={onCancel}
+                className="bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                Close
+              </button>
+            )}
           </div>
         </div>
 
@@ -167,9 +179,11 @@ export default function PrestigeOverlay(props: Props) {
   }
   return (
     <TreeView
+      isPostPrestige={props.isPostPrestige}
       prestigeState={props.prestigeState}
       onUnlockNode={props.onUnlockNode}
       onContinue={props.onContinue}
+      onCancel={props.onCancel}
     />
   );
 }

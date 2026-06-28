@@ -20,9 +20,7 @@ export default function HUD({ state, totalPetals, onPrestige }: Props) {
       <span>💰 {state.gold}g</span>
       <span className="font-bold">Wave {state.wave}</span>
       <span>🌱 {state.seedsThisRun}</span>
-      {displayPetals > 0 && (
-        <span className="text-pink-300">🌸 {displayPetals}</span>
-      )}
+      <span className="text-pink-300">🌸 {displayPetals}</span>
       <span className="ml-auto flex items-center gap-3">
         {displayPetals >= 1 && (
           <button

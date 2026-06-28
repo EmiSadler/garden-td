@@ -12,7 +12,7 @@ import TechTreeOverlay from './components/TechTreeOverlay';
 import MapSelectScreen from './components/MapSelectScreen';
 import PrestigeOverlay from './components/PrestigeOverlay';
 
-type PrestigeOverlayMode = 'confirm' | 'tree' | null;
+type PrestigeOverlayMode = 'confirm' | 'tree' | 'browse' | null;
 
 export default function App() {
   const { prestigeState, addPetals, unlockPrestigeNode, prestige } = usePrestige();
@@ -156,7 +156,7 @@ export default function App() {
           🌱 Tech Tree ({techTree.seeds} seeds)
         </button>
         <button
-          onClick={() => setPrestigeOverlayMode('tree')}
+          onClick={() => setPrestigeOverlayMode('browse')}
           className="text-pink-400 hover:text-pink-200 text-sm underline"
         >
           🌸 Prestige Tree ({prestigeState.petals} petals)
@@ -182,7 +182,8 @@ export default function App() {
 
       {prestigeOverlayMode !== null && (
         <PrestigeOverlay
-          mode={prestigeOverlayMode}
+          mode={prestigeOverlayMode === 'browse' ? 'tree' : prestigeOverlayMode}
+          isPostPrestige={prestigeOverlayMode === 'tree'}
           currentSeeds={techTree.seeds}
           petalsThisRun={petalsAwarded ? 0 : state.petalsThisRun}
           prestigeState={prestigeState}
