@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { PrestigeTreeState, PrestigeConfig } from '../types';
+import type { PrestigeTreeState } from '../types';
 import { computePrestigeConfig, canUnlockPrestigeNode, PRESTIGE_NODES } from '../gameConfig';
 
 const STORAGE_KEY = 'garden_td_prestige';
@@ -53,7 +53,5 @@ export function usePrestige() {
     return Math.floor(currentSeeds * config.seedSavingsRate);
   }, [prestigeState.unlocked]);
 
-  const prestigeConfig: PrestigeConfig = computePrestigeConfig(prestigeState.unlocked);
-
-  return { prestigeState, prestigeConfig, addPetals, unlockPrestigeNode, prestige };
+  return { prestigeState, addPetals, unlockPrestigeNode, prestige };
 }
