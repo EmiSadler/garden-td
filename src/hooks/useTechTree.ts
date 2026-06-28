@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { TechTreeState } from '../types';
-import { TECH_NODES, computeGameConfig, canUnlockNode } from '../gameConfig';
+import { TECH_NODES, computeGameConfig, canUnlockNode, DEFAULT_PRESTIGE_CONFIG } from '../gameConfig';
 
 const STORAGE_KEY = 'garden_td_tech_tree';
 
@@ -22,7 +22,7 @@ function saveToStorage(state: TechTreeState): void {
   }));
 }
 
-export function useTechTree() {
+export function useTechTree(techNodeCostMultiplier = 1.0) {
   const [techTree, setTechTree] = useState<TechTreeState>(loadFromStorage);
 
   const addSeeds = useCallback((amount: number) => {
@@ -37,19 +37,29 @@ export function useTechTree() {
     setTechTree(prev => {
       const node = TECH_NODES.find(n => n.id === nodeId);
       if (!node) return prev;
-      if (prev.seeds < node.cost) return prev;
+      const actualCost = Math.round(node.cost * techNodeCostMultiplier);
+      if (prev.seeds < actualCost) return prev;
       if (!canUnlockNode(nodeId, prev.unlocked)) return prev;
       if (prev.unlocked.has(nodeId)) return prev;
 
       const unlocked = new Set(prev.unlocked);
       unlocked.add(nodeId);
-      const next = { seeds: prev.seeds - node.cost, unlocked };
+      const next = { seeds: prev.seeds - actualCost, unlocked };
+      saveToStorage(next);
+      return next;
+    });
+  }, [techNodeCostMultiplier]);
+
+  const resetWithSeeds = useCallback((keptSeeds: number) => {
+    setTechTree(() => {
+      const next = { seeds: keptSeeds, unlocked: new Set<string>() };
       saveToStorage(next);
       return next;
     });
   }, []);
 
-  const gameConfig = computeGameConfig(techTree.unlocked);
+  // Uses DEFAULT_PRESTIGE_CONFIG; App.tsx overrides with real prestige config in Task 9
+  const gameConfig = computeGameConfig(techTree.unlocked, DEFAULT_PRESTIGE_CONFIG);
 
-  return { techTree, gameConfig, addSeeds, unlockNode };
+  return { techTree, gameConfig, addSeeds, unlockNode, resetWithSeeds };
 }

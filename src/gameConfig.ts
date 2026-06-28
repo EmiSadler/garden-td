@@ -1,8 +1,20 @@
-import type { TechNode, GameConfig, TowerType } from './types';
+import type { TechNode, GameConfig, TowerType, PrestigeNode, PrestigeConfig } from './types';
 
 const BASE_UNLOCKED_TOWERS: TowerType[] = [
   'thorn_bush', 'beehive', 'sunflower', 'sprinkler', 'cactus',
 ];
+
+export const DEFAULT_PRESTIGE_CONFIG: PrestigeConfig = {
+  seedSavingsRate: 0,
+  permanentExtraLives: 0,
+  permanentCostMultiplier: 1.0,
+  permanentDamageMultiplier: 1.0,
+  bossDropsPetals: 1,
+  permanentPrepTimeBonus: 0,
+  techNodeCostMultiplier: 1.0,
+  startingFreeTowers: [],
+  unlockedMapIds: [1],
+};
 
 export const TECH_NODES: TechNode[] = [
   // Roots branch — tower upgrades
@@ -28,7 +40,70 @@ export const TECH_NODES: TechNode[] = [
   { id: 'full_garden',    branch: 'garden',  position: 6, name: 'Full Garden',    description: 'Start with 1 free Thorn Bush placed', cost: 20 },
 ];
 
-export function computeGameConfig(unlocked: Set<string>): GameConfig {
+export const PRESTIGE_NODES: PrestigeNode[] = [
+  // Maps cluster
+  { id: 'unlock_map2',      cluster: 'maps',    name: 'New Lands',        description: 'Unlock Map 2 — The Gauntlet',          cost: 3,  requires: []                                       },
+  { id: 'unlock_map3',      cluster: 'maps',    name: 'The Crossroads',   description: 'Unlock Map 3 — The Crossroads',        cost: 6,  requires: ['unlock_map2']                          },
+  { id: 'unlock_map4',      cluster: 'maps',    name: 'The Labyrinth',    description: 'Unlock Map 4 — The Labyrinth',         cost: 10, requires: ['unlock_map3']                          },
+  // Seed carry-over cluster
+  { id: 'seed_savings_1',   cluster: 'seeds',   name: 'Seed Savings I',   description: 'Keep 15% of seeds on prestige',        cost: 2,  requires: []                                       },
+  { id: 'seed_savings_2',   cluster: 'seeds',   name: 'Seed Savings II',  description: 'Keep 30% of seeds on prestige',        cost: 4,  requires: ['seed_savings_1']                       },
+  { id: 'seed_savings_3',   cluster: 'seeds',   name: 'Seed Savings III', description: 'Keep 50% of seeds on prestige',        cost: 7,  requires: ['seed_savings_2']                       },
+  // Permanent bonuses cluster
+  { id: 'iron_roots',       cluster: 'bonuses', name: 'Iron Roots',       description: '+1 permanent starting life',            cost: 3,  requires: []                                       },
+  { id: 'ancient_soil',     cluster: 'bonuses', name: 'Ancient Soil',     description: 'Tower costs 5% cheaper permanently',   cost: 3,  requires: []                                       },
+  { id: 'veteran_gardener', cluster: 'bonuses', name: 'Veteran Gardener', description: 'Global +10% permanent damage',         cost: 4,  requires: ['ancient_soil']                         },
+  { id: 'boss_bounty',      cluster: 'bonuses', name: 'Boss Bounty',      description: 'Bosses drop 2 petals instead of 1',    cost: 5,  requires: ['unlock_map2']                          },
+  { id: 'quick_study',      cluster: 'bonuses', name: 'Quick Study',      description: 'Tech tree nodes cost 10% fewer seeds', cost: 4,  requires: ['seed_savings_1']                       },
+  { id: 'master_bloomer',   cluster: 'bonuses', name: 'Master Bloomer',   description: '+10s prep time permanently',            cost: 2,  requires: []                                       },
+  // Legacy towers cluster
+  { id: 'legacy_beehive',   cluster: 'legacy',  name: 'Legacy Beehive',   description: 'Start each run with a free 🍯',       cost: 4,  requires: ['ancient_soil']                         },
+  { id: 'legacy_sprinkler', cluster: 'legacy',  name: 'Legacy Sprinkler', description: 'Start each run with a free 💧',       cost: 4,  requires: ['iron_roots']                           },
+  { id: 'legacy_cactus',    cluster: 'legacy',  name: 'Legacy Cactus',    description: 'Start each run with a free 🌵',       cost: 6,  requires: [], requiresAny: ['legacy_beehive', 'legacy_sprinkler'] },
+  { id: 'grand_legacy',     cluster: 'legacy',  name: 'Grand Legacy',     description: 'Start with an additional free 🌿',    cost: 8,  requires: ['legacy_cactus']                        },
+];
+
+export function computePrestigeConfig(unlocked: Set<string>): PrestigeConfig {
+  const config: PrestigeConfig = {
+    ...DEFAULT_PRESTIGE_CONFIG,
+    startingFreeTowers: [],
+    unlockedMapIds: [1],
+  };
+
+  if (unlocked.has('seed_savings_3'))       config.seedSavingsRate = 0.50;
+  else if (unlocked.has('seed_savings_2'))  config.seedSavingsRate = 0.30;
+  else if (unlocked.has('seed_savings_1'))  config.seedSavingsRate = 0.15;
+
+  if (unlocked.has('iron_roots'))           config.permanentExtraLives += 1;
+  if (unlocked.has('ancient_soil'))         config.permanentCostMultiplier *= 0.95;
+  if (unlocked.has('veteran_gardener'))     config.permanentDamageMultiplier *= 1.1;
+  if (unlocked.has('boss_bounty'))          config.bossDropsPetals = 2;
+  if (unlocked.has('master_bloomer'))       config.permanentPrepTimeBonus += 10;
+  if (unlocked.has('quick_study'))          config.techNodeCostMultiplier = 0.9;
+
+  if (unlocked.has('legacy_beehive'))       config.startingFreeTowers.push('beehive');
+  if (unlocked.has('legacy_sprinkler'))     config.startingFreeTowers.push('sprinkler');
+  if (unlocked.has('legacy_cactus'))        config.startingFreeTowers.push('cactus');
+  if (unlocked.has('grand_legacy'))         config.startingFreeTowers.push('thorn_bush');
+
+  if (unlocked.has('unlock_map2')) config.unlockedMapIds.push(2);
+  if (unlocked.has('unlock_map3')) config.unlockedMapIds.push(3);
+  if (unlocked.has('unlock_map4')) config.unlockedMapIds.push(4);
+
+  return config;
+}
+
+export function canUnlockPrestigeNode(nodeId: string, unlocked: Set<string>, petals: number): boolean {
+  const node = PRESTIGE_NODES.find(n => n.id === nodeId);
+  if (!node || unlocked.has(nodeId) || petals < node.cost) return false;
+  if (node.requiresAny) return node.requiresAny.some(r => unlocked.has(r));
+  return node.requires.every(r => unlocked.has(r));
+}
+
+export function computeGameConfig(
+  techUnlocked: Set<string>,
+  prestigeConfig: PrestigeConfig = DEFAULT_PRESTIGE_CONFIG,
+): GameConfig {
   const config: GameConfig = {
     startingGold: 200,
     startingLives: 3,
@@ -43,29 +118,39 @@ export function computeGameConfig(unlocked: Set<string>): GameConfig {
     sunflowerIncomeMultiplier: 1.0,
     sprinklerDurationMultiplier: 1.0,
     cactusCritChance: 0,
-    startingFreeThorn: false,
+    startingFreeTowers: [],
+    bossDropsPetals: prestigeConfig.bossDropsPetals,
+    techNodeCostMultiplier: prestigeConfig.techNodeCostMultiplier,
     unlockedTowers: [...BASE_UNLOCKED_TOWERS],
-    unlockedMapIds: [1],
+    unlockedMapIds: [...prestigeConfig.unlockedMapIds],
   };
 
-  if (unlocked.has('sharp_thorns'))   config.thornDamageMultiplier *= 1.25;
-  if (unlocked.has('bigger_hive'))    config.hiveRangeMultiplier *= 1.3;
-  if (unlocked.has('golden_petals'))  config.sunflowerIncomeMultiplier *= 1.5;
-  if (unlocked.has('longer_soak'))    config.sprinklerDurationMultiplier *= 1.5;
-  if (unlocked.has('spine_shield'))   config.cactusCritChance = 0.2;
-  if (unlocked.has('root_network'))   config.globalDamageMultiplier *= 1.1;
-  if (unlocked.has('spore_cloud'))    config.unlockedTowers.push('mushroom');
-  if (unlocked.has('snap'))           config.unlockedTowers.push('venus_flytrap');
-  if (unlocked.has('hypnopetal'))     config.unlockedTowers.push('rose');
-  if (unlocked.has('chain_drip'))     config.unlockedTowers.push('watering_can');
-  if (unlocked.has('last_bloom'))     config.unlockedTowers.push('pumpkin');
-  if (unlocked.has('ancient_growth')) config.unlockedTowers.push('oak_tree');
-  if (unlocked.has('compost'))        config.extraGold += 30;
-  if (unlocked.has('tough_roots'))    config.extraLives += 1;
-  if (unlocked.has('early_bloom'))    config.prepTime = 20;
-  if (unlocked.has('fertile_soil'))   config.costMultiplier *= 0.9;
-  if (unlocked.has('morning_dew'))    config.globalSpeedMultiplier *= 1.15;
-  if (unlocked.has('full_garden'))    config.startingFreeThorn = true;
+  // Prestige permanent bonuses
+  config.extraLives             += prestigeConfig.permanentExtraLives;
+  config.costMultiplier         *= prestigeConfig.permanentCostMultiplier;
+  config.globalDamageMultiplier *= prestigeConfig.permanentDamageMultiplier;
+  config.prepTime               += prestigeConfig.permanentPrepTimeBonus;
+  config.startingFreeTowers.push(...prestigeConfig.startingFreeTowers);
+
+  // Tech tree bonuses
+  if (techUnlocked.has('sharp_thorns'))   config.thornDamageMultiplier *= 1.25;
+  if (techUnlocked.has('bigger_hive'))    config.hiveRangeMultiplier *= 1.3;
+  if (techUnlocked.has('golden_petals'))  config.sunflowerIncomeMultiplier *= 1.5;
+  if (techUnlocked.has('longer_soak'))    config.sprinklerDurationMultiplier *= 1.5;
+  if (techUnlocked.has('spine_shield'))   config.cactusCritChance = 0.2;
+  if (techUnlocked.has('root_network'))   config.globalDamageMultiplier *= 1.1;
+  if (techUnlocked.has('spore_cloud'))    config.unlockedTowers.push('mushroom');
+  if (techUnlocked.has('snap'))           config.unlockedTowers.push('venus_flytrap');
+  if (techUnlocked.has('hypnopetal'))     config.unlockedTowers.push('rose');
+  if (techUnlocked.has('chain_drip'))     config.unlockedTowers.push('watering_can');
+  if (techUnlocked.has('last_bloom'))     config.unlockedTowers.push('pumpkin');
+  if (techUnlocked.has('ancient_growth')) config.unlockedTowers.push('oak_tree');
+  if (techUnlocked.has('compost'))        config.extraGold += 30;
+  if (techUnlocked.has('tough_roots'))    config.extraLives += 1;
+  if (techUnlocked.has('early_bloom'))    config.prepTime = 20;
+  if (techUnlocked.has('fertile_soil'))   config.costMultiplier *= 0.9;
+  if (techUnlocked.has('morning_dew'))    config.globalSpeedMultiplier *= 1.15;
+  if (techUnlocked.has('full_garden'))    config.startingFreeTowers.push('thorn_bush');
 
   return config;
 }

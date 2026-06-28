@@ -13,6 +13,9 @@ describe('computeGameConfig', () => {
     );
     expect(config.globalDamageMultiplier).toBe(1.0);
     expect(config.unlockedMapIds).toEqual([1]);
+    expect(config.startingFreeTowers).toEqual([]);
+    expect(config.bossDropsPetals).toBe(1);
+    expect(config.techNodeCostMultiplier).toBeCloseTo(1.0);
   });
 
   it('applies compost: +30 extra gold', () => {
@@ -38,6 +41,11 @@ describe('computeGameConfig', () => {
   it('extends prep time to 20s with early_bloom', () => {
     const config = computeGameConfig(new Set(['early_bloom']));
     expect(config.prepTime).toBe(20);
+  });
+
+  it('full_garden puts thorn_bush in startingFreeTowers', () => {
+    const config = computeGameConfig(new Set(['full_garden']));
+    expect(config.startingFreeTowers).toContain('thorn_bush');
   });
 });
 

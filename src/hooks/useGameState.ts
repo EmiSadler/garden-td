@@ -1,16 +1,35 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import type { GameState, TowerType, GameConfig } from '../types';
+import type { GameState, TowerType, GameConfig, PlacedTower } from '../types';
 import { BASE_TOWER_STATS, SELL_REFUND } from '../constants';
 import { tick, makePlacedTower } from '../gameLogic';
 import { getMapById, getMapPathTileSet, getMapEntryTile } from '../maps';
 
+const FREE_TOWER_SLOTS = [
+  { dCol: 1, dRow: -1 },
+  { dCol: 1, dRow:  1 },
+  { dCol: 2, dRow: -1 },
+  { dCol: 2, dRow:  1 },
+  { dCol: 3, dRow: -1 },
+];
+
 function buildInitialState(config: GameConfig, mapId: number): GameState {
   const map = getMapById(mapId);
   const entryTile = getMapEntryTile(map);
+  const pathSet = getMapPathTileSet(map);
 
-  const initialTowers = config.startingFreeThorn
-    ? [makePlacedTower('thorn_bush', entryTile.col + 1, entryTile.row - 1)]
-    : [];
+  const initialTowers: PlacedTower[] = [];
+  let slotIdx = 0;
+  for (const type of config.startingFreeTowers) {
+    while (slotIdx < FREE_TOWER_SLOTS.length) {
+      const { dCol, dRow } = FREE_TOWER_SLOTS[slotIdx++];
+      const col = entryTile.col + dCol;
+      const row = entryTile.row + dRow;
+      if (col < 20 && row >= 0 && row < 12 && !pathSet.has(`${col},${row}`)) {
+        initialTowers.push(makePlacedTower(type, col, row));
+        break;
+      }
+    }
+  }
 
   return {
     phase: 'prep',
