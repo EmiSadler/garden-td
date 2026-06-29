@@ -13,6 +13,7 @@ export default function EnemySprite({ enemy, map }: Props) {
   const hpPct = Math.max(0, enemy.hp / enemy.maxHp);
   const isBoss = enemy.type === 'boss_snail';
   const isPoisoned = enemy.poisonTimer > 0;
+  const isSlowed = enemy.slowTimer > 0;
 
   return (
     <div
@@ -27,8 +28,11 @@ export default function EnemySprite({ enemy, map }: Props) {
           borderRadius: 2,
         }} />
       </div>
-      {isPoisoned && (
-        <div style={{ fontSize: 8, lineHeight: 1, marginBottom: 1 }}>☠️</div>
+      {(isPoisoned || isSlowed) && (
+        <div style={{ fontSize: 8, lineHeight: 1, marginBottom: 1, display: 'flex', gap: 1 }}>
+          {isPoisoned && <span>☠️</span>}
+          {isSlowed && <span>🧊</span>}
+        </div>
       )}
       <span style={{ fontSize: isBoss ? 28 : 18 }} title={stats.label}>
         {stats.emoji}{isBoss && '👑'}
