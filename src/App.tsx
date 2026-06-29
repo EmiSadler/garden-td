@@ -44,7 +44,7 @@ export default function App() {
     return (
       <MapSelectScreen
         unlockedMapIds={gameConfig.unlockedMapIds}
-        onSelect={id => setSelectedMapId(id)}
+        onSelect={id => { setSelectedMapId(id); restartRun(id); }}
       />
     );
   }
