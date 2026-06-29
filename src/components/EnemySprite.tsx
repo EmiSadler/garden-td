@@ -30,7 +30,7 @@ export default function EnemySprite({ enemy, map }: Props) {
       </div>
       {(isPoisoned || isSlowed) && (
         <div style={{ fontSize: 8, lineHeight: 1, marginBottom: 1, display: 'flex', gap: 1 }}>
-          {isPoisoned && <span>☠️</span>}
+          {isPoisoned && <span>🧪</span>}
           {isSlowed && <span>🧊</span>}
         </div>
       )}
