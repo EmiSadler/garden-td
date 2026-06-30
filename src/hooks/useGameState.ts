@@ -143,6 +143,8 @@ export function useGameState(config: GameConfig, mapId: number) {
     pathTileSetRef.current = getMapPathTileSet(mapRef.current);
     lastTimeRef.current = undefined;
     stateRef.current = buildInitialState(configRef.current, id);
+    speedRef.current = 1;
+    setSpeedState(1);
     setTick(n => n + 1);
   }, []);
 
