@@ -5,7 +5,7 @@ export function buildWave(wave: number): EnemySpawn[] {
   const baseCount = 5;
   const totalCount = Math.max(1, Math.floor(baseCount * Math.pow(1.3, wave - 1)));
   const isBoss = wave % 10 === 0;
-  const phase = Math.floor((wave - 1) / 5);
+  const phase = Math.floor((wave - 1) / 4);
 
   const groups: { type: EnemyType; count: number }[] = [];
 

@@ -5,7 +5,7 @@ import { buildWave, calculateSeeds } from './waveBuilder';
 
 // ─── Factories ───────────────────────────────────────────────────────────────
 
-export function makeEnemy(type: EnemyType, entrySegmentId: string, hpMultiplier = 1): Enemy {
+export function makeEnemy(type: EnemyType, entrySegmentId: string, hpMultiplier = 1, speedMultiplier = 1): Enemy {
   const stats = BASE_ENEMY_STATS[type];
   const hp = Math.round(stats.hp * hpMultiplier);
   return {
@@ -16,7 +16,7 @@ export function makeEnemy(type: EnemyType, entrySegmentId: string, hpMultiplier 
     totalProgress: 0,
     hp,
     maxHp: hp,
-    speed: stats.speed,
+    speed: stats.speed * speedMultiplier,
     slowTimer: 0,
     poisonTimer: 0,
     poisonDps: 0,
@@ -97,11 +97,12 @@ function spawnDueEnemies(state: GameState, dt: number, map: MapDef): GameState {
   const newSpawnTimer = state.spawnTimer + dt;
   const pending = [...state.pendingSpawns];
   const newEnemies: Enemy[] = [];
-  const hpMultiplier = Math.pow(1.1, state.wave - 1);
+  const hpMultiplier = Math.pow(1.15, state.wave - 1);
+  const speedMultiplier = Math.pow(1.02, state.wave - 1);
 
   let i = 0;
   while (i < pending.length && pending[i].delaySeconds <= newSpawnTimer) {
-    newEnemies.push(makeEnemy(pending[i].type, map.entrySegmentId, hpMultiplier));
+    newEnemies.push(makeEnemy(pending[i].type, map.entrySegmentId, hpMultiplier, speedMultiplier));
     i++;
   }
 
