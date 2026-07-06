@@ -151,7 +151,9 @@ export default function App() {
         />
       </div>
 
-      <div className="mt-4 flex gap-4 items-center">
+      <div className="mt-2 text-green-700 text-xs font-mono">{__COMMIT__}</div>
+
+      <div className="mt-2 flex gap-4 items-center">
         <button
           onClick={() => setShowTechTree(true)}
           className="text-green-400 hover:text-green-200 text-sm underline"
