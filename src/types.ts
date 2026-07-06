@@ -55,6 +55,8 @@ export interface PlacedTower {
   cooldownTimer: number;
   incomeTimer: number;
   hp: number;
+  fireCount: number;
+  lastFireWasCrit: boolean;
 }
 
 export interface EnemySpawn {

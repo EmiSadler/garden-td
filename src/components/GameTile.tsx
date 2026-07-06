@@ -40,7 +40,17 @@ export default function GameTile({
       {isExit && !tower && <span title="Garden Heart">🌷</span>}
       {isEntry && !tower && <span className="opacity-40 text-sm">▶</span>}
       {tower && (
-        <span title={BASE_TOWER_STATS[tower.type].label} className="cursor-pointer hover:scale-110 transition-transform">
+        <span
+          key={tower.fireCount}
+          title={BASE_TOWER_STATS[tower.type].label}
+          className={`cursor-pointer ${
+            tower.type === 'sunflower'
+              ? 'animate-tower-income'
+              : tower.lastFireWasCrit
+                ? 'animate-tower-crit'
+                : 'animate-tower-pulse'
+          }`}
+        >
           {BASE_TOWER_STATS[tower.type].emoji}
         </span>
       )}

@@ -1,9 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { GameState, MapDef } from '../types';
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, BASE_TOWER_STATS } from '../constants';
 import { getMapPathTileSet, getMapExitTile, getMapEntryTile } from '../maps';
 import GameTile from './GameTile';
 import EnemySprite from './EnemySprite';
+
+interface AoeRing {
+  id: string;
+  col: number;
+  row: number;
+  range: number;
+  color: string;
+}
+
+const AOE_TOWER_TYPES = new Set(['beehive', 'sprinkler', 'oak_tree']);
+
+const AOE_RING_COLOR: Record<string, string> = {
+  beehive:  'rgba(251, 191, 36,  0.55)',
+  sprinkler:'rgba(96,  165, 250, 0.55)',
+  oak_tree: 'rgba(134, 239, 172, 0.55)',
+};
 
 interface Props {
   state: GameState;
@@ -21,6 +37,31 @@ interface RangeRing {
 
 export default function GameBoard({ state, map, onTileClick, onTowerClick }: Props) {
   const [hoveredPos, setHoveredPos] = useState<{ col: number; row: number } | null>(null);
+  const [aoeRings, setAoeRings] = useState<AoeRing[]>([]);
+  const prevFireCountsRef = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    const newRings: AoeRing[] = [];
+    for (const tower of state.towers) {
+      if (!AOE_TOWER_TYPES.has(tower.type)) continue;
+      const prev = prevFireCountsRef.current.get(tower.id) ?? 0;
+      if (tower.fireCount > prev) {
+        newRings.push({
+          id: `${tower.id}-${tower.fireCount}`,
+          col: tower.col,
+          row: tower.row,
+          range: BASE_TOWER_STATS[tower.type].range,
+          color: AOE_RING_COLOR[tower.type],
+        });
+      }
+      prevFireCountsRef.current.set(tower.id, tower.fireCount);
+    }
+    if (newRings.length === 0) return;
+    setAoeRings(prev => [...prev, ...newRings]);
+    const ids = new Set(newRings.map(r => r.id));
+    const timer = setTimeout(() => setAoeRings(prev => prev.filter(r => !ids.has(r.id))), 400);
+    return () => clearTimeout(timer);
+  }, [state.towers]);
 
   const pathTileSet = getMapPathTileSet(map);
   const exitTile = getMapExitTile(map);
@@ -81,6 +122,24 @@ export default function GameBoard({ state, map, onTileClick, onTowerClick }: Pro
           }}
         />
       ))}
+
+      {aoeRings.map(ring => {
+        const diameter = ring.range * TILE_SIZE * 2;
+        return (
+          <div
+            key={ring.id}
+            className="absolute pointer-events-none rounded-full animate-aoe-ring"
+            style={{
+              left:   (ring.col + 0.5) * TILE_SIZE - ring.range * TILE_SIZE,
+              top:    (ring.row + 0.5) * TILE_SIZE - ring.range * TILE_SIZE,
+              width:  diameter,
+              height: diameter,
+              border: `3px solid ${ring.color}`,
+              zIndex: 6,
+            }}
+          />
+        );
+      })}
 
       {state.enemies.map(enemy => (
         <EnemySprite key={enemy.id} enemy={enemy} map={map} />

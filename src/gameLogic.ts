@@ -36,6 +36,8 @@ export function makePlacedTower(type: TowerType, col: number, row: number): Plac
     cooldownTimer: 0,
     incomeTimer: BASE_TOWER_STATS[type].incomeInterval,
     hp: Infinity,
+    fireCount: 0,
+    lastFireWasCrit: false,
   };
 }
 
@@ -232,7 +234,7 @@ function tickTowerAttacks(
         }
         return updated;
       });
-      return { ...tower, cooldownTimer: stats.cooldown / config.globalSpeedMultiplier };
+      return { ...tower, cooldownTimer: stats.cooldown / config.globalSpeedMultiplier, fireCount: tower.fireCount + 1, lastFireWasCrit: false };
     }
 
     const target = findTarget(tower, enemies, range, map);
@@ -267,7 +269,7 @@ function tickTowerAttacks(
       });
     }
 
-    return { ...tower, cooldownTimer: stats.cooldown / config.globalSpeedMultiplier };
+    return { ...tower, cooldownTimer: stats.cooldown / config.globalSpeedMultiplier, fireCount: tower.fireCount + 1, lastFireWasCrit: isCrit };
   });
 
   return { ...state, enemies, towers };
@@ -283,7 +285,7 @@ function tickSunflowers(state: GameState, dt: number, config: GameConfig): GameS
     const newTimer = tower.incomeTimer - dt;
     if (newTimer <= 0) {
       gold += Math.round(stats.incomeAmount * config.sunflowerIncomeMultiplier);
-      return { ...tower, incomeTimer: stats.incomeInterval + newTimer };
+      return { ...tower, incomeTimer: stats.incomeInterval + newTimer, fireCount: tower.fireCount + 1 };
     }
     return { ...tower, incomeTimer: newTimer };
   });
