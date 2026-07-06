@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import type { GameState, MapDef } from '../types';
-import { GRID_COLS, GRID_ROWS, TILE_SIZE, BASE_TOWER_STATS } from '../constants';
-import { getMapPathTileSet, getMapExitTile, getMapEntryTile } from '../maps';
+import type { Enemy, GameState, MapDef } from '../types';
+import { GRID_COLS, GRID_ROWS, TILE_SIZE, BASE_ENEMY_STATS, BASE_TOWER_STATS } from '../constants';
+import { getMapPathTileSet, getMapExitTile, getMapEntryTile, getEnemyPixelPos } from '../maps';
 import GameTile from './GameTile';
 import EnemySprite from './EnemySprite';
 
@@ -11,6 +11,20 @@ interface AoeRing {
   row: number;
   range: number;
   color: string;
+}
+
+interface DeathPop {
+  id: string;
+  x: number;
+  y: number;
+  emoji: string;
+}
+
+interface GoldFloat {
+  id: string;
+  x: number;
+  y: number;
+  amount: number;
 }
 
 const AOE_TOWER_TYPES = new Set(['beehive', 'sprinkler', 'oak_tree']);
@@ -38,7 +52,11 @@ interface RangeRing {
 export default function GameBoard({ state, map, onTileClick, onTowerClick }: Props) {
   const [hoveredPos, setHoveredPos] = useState<{ col: number; row: number } | null>(null);
   const [aoeRings, setAoeRings] = useState<AoeRing[]>([]);
+  const [deathPops, setDeathPops] = useState<DeathPop[]>([]);
+  const [goldFloats, setGoldFloats] = useState<GoldFloat[]>([]);
+  const [lifeFlashKey, setLifeFlashKey] = useState(0);
   const prevFireCountsRef = useRef<Map<string, number>>(new Map());
+  const prevEnemiesRef = useRef<Map<string, Enemy>>(new Map());
 
   useEffect(() => {
     const newRings: AoeRing[] = [];
@@ -62,6 +80,45 @@ export default function GameBoard({ state, map, onTileClick, onTowerClick }: Pro
     const timer = setTimeout(() => setAoeRings(prev => prev.filter(r => !ids.has(r.id))), 400);
     return () => clearTimeout(timer);
   }, [state.towers]);
+
+  useEffect(() => {
+    const currentIds = new Set(state.enemies.map(e => e.id));
+    const newPops: DeathPop[] = [];
+    const newGold: GoldFloat[] = [];
+    let exitCount = 0;
+
+    for (const [id, enemy] of prevEnemiesRef.current) {
+      if (currentIds.has(id)) continue;
+      const { x, y } = getEnemyPixelPos(enemy.segmentId, enemy.segmentProgress, map, TILE_SIZE);
+      if (enemy.exited) {
+        exitCount++;
+      } else {
+        const stats = BASE_ENEMY_STATS[enemy.type];
+        newPops.push({ id: `pop-${id}`, x, y, emoji: stats.emoji });
+        newGold.push({ id: `gold-${id}`, x, y, amount: stats.goldReward });
+      }
+    }
+
+    prevEnemiesRef.current = new Map(state.enemies.map(e => [e.id, e]));
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    if (newPops.length > 0) {
+      setDeathPops(prev => [...prev, ...newPops]);
+      const ids = new Set(newPops.map(p => p.id));
+      timers.push(setTimeout(() => setDeathPops(prev => prev.filter(p => !ids.has(p.id))), 400));
+    }
+    if (newGold.length > 0) {
+      setGoldFloats(prev => [...prev, ...newGold]);
+      const ids = new Set(newGold.map(g => g.id));
+      timers.push(setTimeout(() => setGoldFloats(prev => prev.filter(g => !ids.has(g.id))), 750));
+    }
+    if (exitCount > 0) {
+      setLifeFlashKey(k => k + 1);
+    }
+
+    if (timers.length > 0) return () => timers.forEach(clearTimeout);
+  }, [state.enemies, map]);
 
   const pathTileSet = getMapPathTileSet(map);
   const exitTile = getMapExitTile(map);
@@ -144,6 +201,34 @@ export default function GameBoard({ state, map, onTileClick, onTowerClick }: Pro
       {state.enemies.map(enemy => (
         <EnemySprite key={enemy.id} enemy={enemy} map={map} />
       ))}
+
+      {deathPops.map(pop => (
+        <div
+          key={pop.id}
+          className="absolute pointer-events-none animate-death-pop"
+          style={{ left: pop.x - 14, top: pop.y - 14, fontSize: 20, zIndex: 15 }}
+        >
+          {pop.emoji}
+        </div>
+      ))}
+
+      {goldFloats.map(g => (
+        <div
+          key={g.id}
+          className="absolute pointer-events-none animate-float-gold font-bold text-yellow-300 text-xs"
+          style={{ left: g.x - 12, top: g.y - 24, zIndex: 16 }}
+        >
+          +{g.amount}g
+        </div>
+      ))}
+
+      {lifeFlashKey > 0 && (
+        <div
+          key={lifeFlashKey}
+          className="absolute inset-0 pointer-events-none animate-life-flash"
+          style={{ background: 'rgba(239, 68, 68, 1)', zIndex: 20 }}
+        />
+      )}
 
       {state.selectedTowerType && (
         <div className="absolute inset-0 pointer-events-none border-2 border-dashed border-green-400 opacity-50" />
