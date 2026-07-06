@@ -1,7 +1,7 @@
 {
   "name": "garden-td",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -32,6 +32,7 @@
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.11.0",
     "jsdom": "^26.1.0",
+    "playwright": "^1.61.1",
     "tailwindcss": "^4.3.1",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.11.0",

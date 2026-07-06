@@ -151,7 +151,7 @@ export default function App() {
         />
       </div>
 
-      <div className="mt-2 text-green-700 text-xs font-mono">{__COMMIT__}</div>
+      <div className="mt-2 text-green-700 text-xs font-mono">v{__VERSION__}</div>
 
       <div className="mt-2 flex gap-4 items-center">
         <button
