@@ -7,6 +7,9 @@ interface Props {
   onRestart: () => void;
 }
 
+// End-of-run summary modal, shown when the player's lives reach zero.
+// Seeds and petals are awarded exactly once in App before this is shown.
+// Petals section is hidden when no boss snails were killed this run.
 export default function RunEndOverlay({ wave, enemiesKilled, seedsEarned, petalsEarned, onOpenTechTree, onRestart }: Props) {
   return (
     <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/60">

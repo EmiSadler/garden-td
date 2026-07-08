@@ -8,6 +8,8 @@ interface Props {
   onClose: () => void;
 }
 
+// Modal shown when the player clicks a placed tower. Displays full stat readout and a sell
+// button that refunds SELL_REFUND (50%) of the tower's cost. Clicking the backdrop closes it.
 export default function TowerInfoModal({ tower, config, onSell, onClose }: Props) {
   const stats = BASE_TOWER_STATS[tower.type];
   const cost = Math.round(stats.cost * config.costMultiplier);

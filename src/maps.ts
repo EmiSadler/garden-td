@@ -1,6 +1,7 @@
 import type { MapDef, PathSegment, GridPos } from './types';
 import { getPathTiles } from './mapData';
 
+// Convenience builder: converts a waypoint list into a full PathSegment object.
 function seg(id: string, waypoints: GridPos[], nextSegmentIds: string[]): PathSegment {
   return { id, tiles: getPathTiles(waypoints), nextSegmentIds };
 }
@@ -60,6 +61,7 @@ const MAP_3: MapDef = {
   petalMultiplier: 1.25,
   entrySegmentId: 'cross_entry',
   segments: [
+    // Shared entry segment; splits into upper and lower branches at col 7.
     seg('cross_entry', [
       { col: 0, row: 6 }, { col: 1, row: 6 }, { col: 2, row: 6 },
       { col: 3, row: 6 }, { col: 4, row: 6 }, { col: 5, row: 6 },
@@ -98,6 +100,7 @@ const MAP_4: MapDef = {
   petalMultiplier: 1.5,
   entrySegmentId: 'lab_entry',
   segments: [
+    // Entry splits into top/bottom lanes, each of which splits again into 2 sub-routes.
     seg('lab_entry', [
       { col: 0, row: 6 }, { col: 1, row: 6 }, { col: 2, row: 6 },
       { col: 3, row: 6 }, { col: 4, row: 6 },
@@ -153,12 +156,15 @@ const MAP_4: MapDef = {
 
 export const MAPS: MapDef[] = [MAP_1, MAP_2, MAP_3, MAP_4];
 
+// Looks up a map by its numeric id; throws if the id doesn't exist.
 export function getMapById(id: number): MapDef {
   const map = MAPS.find(m => m.id === id);
   if (!map) throw new Error(`Map ${id} not found`);
   return map;
 }
 
+// Returns a Set<"col,row"> of every tile that belongs to any segment — used for fast
+// O(1) path collision checks when placing towers.
 export function getMapPathTileSet(map: MapDef): Set<string> {
   const set = new Set<string>();
   for (const seg of map.segments) {
@@ -169,18 +175,23 @@ export function getMapPathTileSet(map: MapDef): Set<string> {
   return set;
 }
 
+// Returns the last tile of the terminal segment (the segment with no outgoing links).
+// This is the tile that triggers an enemy exit when reached.
 export function getMapExitTile(map: MapDef): GridPos {
   const terminal = map.segments.find(s => s.nextSegmentIds.length === 0);
   if (!terminal) throw new Error(`Map ${map.id} has no terminal segment`);
   return terminal.tiles[terminal.tiles.length - 1];
 }
 
+// Returns the first tile of the entry segment — used to position free starting towers nearby.
 export function getMapEntryTile(map: MapDef): GridPos {
   const entry = map.segments.find(s => s.id === map.entrySegmentId);
   if (!entry) throw new Error(`Map ${map.id} entry segment not found`);
   return entry.tiles[0];
 }
 
+// Converts a segment ID + fractional progress value into a pixel position for smooth
+// enemy rendering. Interpolates linearly between the two adjacent tiles.
 export function getEnemyPixelPos(
   segmentId: string,
   segmentProgress: number,

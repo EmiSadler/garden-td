@@ -1,9 +1,11 @@
 import type { TechNode, GameConfig, TowerType, PrestigeNode, PrestigeConfig } from './types';
 
+// The five towers every player starts with, before any tech tree unlocks.
 const BASE_UNLOCKED_TOWERS: TowerType[] = [
   'thorn_bush', 'beehive', 'sunflower', 'sprinkler', 'cactus',
 ];
 
+// Baseline prestige config used when no prestige nodes have been bought yet.
 export const DEFAULT_PRESTIGE_CONFIG: PrestigeConfig = {
   seedSavingsRate: 0,
   permanentExtraLives: 0,
@@ -17,6 +19,8 @@ export const DEFAULT_PRESTIGE_CONFIG: PrestigeConfig = {
   slowMotionUnlocked: false,
 };
 
+// The full 18-node tech tree, split into three linear branches.
+// Each branch gates position N on position N-1 being unlocked first.
 export const TECH_NODES: TechNode[] = [
   // Roots branch — tower upgrades
   { id: 'sharp_thorns',   branch: 'roots',   position: 1, name: 'Sharp Thorns',   description: 'Thorn Bush +25% damage',             cost: 5  },
@@ -41,6 +45,8 @@ export const TECH_NODES: TechNode[] = [
   { id: 'full_garden',    branch: 'garden',  position: 6, name: 'Full Garden',    description: 'Start with 1 free Thorn Bush placed', cost: 20 },
 ];
 
+// The full 17-node prestige tree, split into four clusters.
+// Prerequisites use AND gates (requires) and optional OR gates (requiresAny).
 export const PRESTIGE_NODES: PrestigeNode[] = [
   // Maps cluster
   { id: 'unlock_map2',      cluster: 'maps',    name: 'New Lands',        description: 'Unlock Map 2 — The Gauntlet',          cost: 3,  requires: []                                       },
@@ -65,6 +71,8 @@ export const PRESTIGE_NODES: PrestigeNode[] = [
   { id: 'grand_legacy',     cluster: 'legacy',  name: 'Grand Legacy',     description: 'Start with an additional free 🌿',    cost: 8,  requires: ['legacy_cactus']                        },
 ];
 
+// Builds a PrestigeConfig from the set of unlocked prestige node IDs.
+// Iterates highest-tier options first so cascading upgrades (seed_savings_3 > 2 > 1) resolve correctly.
 export function computePrestigeConfig(unlocked: Set<string>): PrestigeConfig {
   const config: PrestigeConfig = {
     ...DEFAULT_PRESTIGE_CONFIG,
@@ -97,6 +105,8 @@ export function computePrestigeConfig(unlocked: Set<string>): PrestigeConfig {
   return config;
 }
 
+// Returns true if a prestige node can be purchased right now.
+// Checks: node exists, not already owned, petals sufficient, AND prerequisites met, optional OR gate met.
 export function canUnlockPrestigeNode(nodeId: string, unlocked: Set<string>, petals: number): boolean {
   const node = PRESTIGE_NODES.find(n => n.id === nodeId);
   if (!node || unlocked.has(nodeId) || petals < node.cost) return false;
@@ -105,6 +115,8 @@ export function canUnlockPrestigeNode(nodeId: string, unlocked: Set<string>, pet
   return andSatisfied && orSatisfied;
 }
 
+// Merges prestige permanent bonuses and tech tree node bonuses into a single GameConfig
+// that the game loop reads each frame. Called in App whenever either tree changes.
 export function computeGameConfig(
   techUnlocked: Set<string>,
   prestigeConfig: PrestigeConfig = DEFAULT_PRESTIGE_CONFIG,
@@ -130,7 +142,7 @@ export function computeGameConfig(
     unlockedMapIds: [...prestigeConfig.unlockedMapIds],
   };
 
-  // Prestige permanent bonuses
+  // Apply prestige permanent bonuses first so tech tree multipliers stack on top.
   config.extraLives             += prestigeConfig.permanentExtraLives;
   config.costMultiplier         *= prestigeConfig.permanentCostMultiplier;
   config.globalDamageMultiplier *= prestigeConfig.permanentDamageMultiplier;
@@ -160,6 +172,8 @@ export function computeGameConfig(
   return config;
 }
 
+// Returns true if a tech tree node is currently purchasable.
+// Position 1 is always available; position N requires position N-1 to be unlocked first.
 export function canUnlockNode(nodeId: string, unlocked: Set<string>): boolean {
   const node = TECH_NODES.find(n => n.id === nodeId);
   if (!node) return false;

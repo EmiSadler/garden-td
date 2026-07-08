@@ -1,6 +1,10 @@
 import type { EnemyType, EnemySpawn } from './types';
 import { SPAWN_INTERVAL } from './constants';
 
+// Generates the timed spawn list for a given wave number.
+// Total enemy count scales exponentially with wave (×1.3 each wave).
+// Composition shifts across 4 phases every 4 waves: caterpillars → +ladybugs → +snails → mixed.
+// Every 10th wave is a boss wave: a crowd of caterpillars plus one boss snail.
 export function buildWave(wave: number): EnemySpawn[] {
   const baseCount = 5;
   const totalCount = Math.max(1, Math.floor(baseCount * Math.pow(1.3, wave - 1)));
@@ -29,6 +33,7 @@ export function buildWave(wave: number): EnemySpawn[] {
     }
   }
 
+  // Assign increasing delay to each enemy so they trickle in one at a time.
   const spawns: EnemySpawn[] = [];
   let delay = 0;
   for (const { type, count } of groups) {
@@ -40,6 +45,8 @@ export function buildWave(wave: number): EnemySpawn[] {
   return spawns;
 }
 
+// Converts wave count and total kill count into a seed reward.
+// Rewards players who survive longer AND kill more enemies each run.
 export function calculateSeeds(wavessurvived: number, enemiesKilled: number): number {
   return wavessurvived * Math.floor(enemiesKilled / 10);
 }

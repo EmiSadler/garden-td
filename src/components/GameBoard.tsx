@@ -27,6 +27,7 @@ interface GoldFloat {
   amount: number;
 }
 
+// Only these tower types emit an expanding ring animation when they fire.
 const AOE_TOWER_TYPES = new Set(['beehive', 'sprinkler', 'oak_tree']);
 
 const AOE_RING_COLOR: Record<string, string> = {
@@ -49,15 +50,22 @@ interface RangeRing {
   color: string;
 }
 
+// The game board: renders the 20×12 tile grid, all enemies, and all transient visual effects
+// (AoE rings, death pops, gold floats, life flash). Keeps its own effect state separate from
+// the game loop so visual flair doesn't pollute GameState.
 export default function GameBoard({ state, map, onTileClick, onTowerClick }: Props) {
   const [hoveredPos, setHoveredPos] = useState<{ col: number; row: number } | null>(null);
   const [aoeRings, setAoeRings] = useState<AoeRing[]>([]);
   const [deathPops, setDeathPops] = useState<DeathPop[]>([]);
   const [goldFloats, setGoldFloats] = useState<GoldFloat[]>([]);
   const [lifeFlashKey, setLifeFlashKey] = useState(0);
+  // Stores last-seen fireCount per tower so we can detect the moment it increments.
   const prevFireCountsRef = useRef<Map<string, number>>(new Map());
+  // Stores last frame's enemy map so we can detect disappearances (kills vs exits).
   const prevEnemiesRef = useRef<Map<string, Enemy>>(new Map());
 
+  // Detects AoE tower fires by comparing current fireCount to the previous frame's value.
+  // Spawns an expanding ring overlay that self-removes after the animation completes.
   useEffect(() => {
     const newRings: AoeRing[] = [];
     for (const tower of state.towers) {
@@ -81,6 +89,10 @@ export default function GameBoard({ state, map, onTileClick, onTowerClick }: Pro
     return () => clearTimeout(timer);
   }, [state.towers]);
 
+  // Detects enemy disappearances each frame by diffing the current enemy list against the
+  // previous frame. Missing enemies with exited:false were killed → show death pop + gold float.
+  // Missing enemies with exited:true reached the exit → trigger the red life-flash overlay.
+  // All cleanup timers are collected into an array so they're all cleared on unmount.
   useEffect(() => {
     const currentIds = new Set(state.enemies.map(e => e.id));
     const newPops: DeathPop[] = [];
@@ -114,6 +126,8 @@ export default function GameBoard({ state, map, onTileClick, onTowerClick }: Pro
       timers.push(setTimeout(() => setGoldFloats(prev => prev.filter(g => !ids.has(g.id))), 750));
     }
     if (exitCount > 0) {
+      // Incrementing the key remounts the overlay element, re-triggering the CSS animation
+      // without needing a timer to reset it.
       setLifeFlashKey(k => k + 1);
     }
 
@@ -125,6 +139,8 @@ export default function GameBoard({ state, map, onTileClick, onTowerClick }: Pro
   const entryTile = getMapEntryTile(map);
   const towerByPos = new Map(state.towers.map(t => [`${t.col},${t.row}`, t]));
 
+  // Build the static range-ring overlay: indigo for a hovered placed tower,
+  // yellow for a tower type being placed (shows where it would reach).
   const rangeRings: RangeRing[] = [];
   if (hoveredPos) {
     const hoveredTower = towerByPos.get(`${hoveredPos.col},${hoveredPos.row}`);

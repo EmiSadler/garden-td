@@ -1,6 +1,6 @@
 import type { GridPos } from './types';
 
-// PATH_WAYPOINTS kept for Map 1 reference and test compatibility
+// PATH_WAYPOINTS kept for Map 1 reference and test compatibility.
 export const PATH_WAYPOINTS: GridPos[] = [
   { col: 0,  row: 2  },
   { col: 4,  row: 2  },
@@ -10,8 +10,8 @@ export const PATH_WAYPOINTS: GridPos[] = [
   { col: 19, row: 2  },
 ];
 
-// Expand an ordered list of waypoints into individual step-by-step tiles.
-// Used by maps.ts to build PathSegment tile arrays.
+// Expand an ordered list of corner waypoints into every individual tile the path passes through.
+// Walks horizontally or vertically between each adjacent pair, then appends the final tile.
 export function getPathTiles(waypoints: GridPos[]): GridPos[] {
   const tiles: GridPos[] = [];
   for (let i = 0; i < waypoints.length - 1; i++) {
@@ -33,6 +33,7 @@ export function getPathTiles(waypoints: GridPos[]): GridPos[] {
   return tiles;
 }
 
+// Returns true if the given grid cell is occupied by the path (used to block tower placement).
 export function isTileOnPath(col: number, row: number, pathTiles: GridPos[]): boolean {
   return pathTiles.some(t => t.col === col && t.row === row);
 }

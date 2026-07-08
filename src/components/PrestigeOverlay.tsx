@@ -21,6 +21,8 @@ const CLUSTER_LABELS: Record<PrestigeNode['cluster'], string> = {
   legacy:  '🏆 Legacy Towers',
 };
 
+// Confirmation screen shown before committing to a prestige. Summarises what the player
+// will lose (tech tree, seeds) vs what they keep (carried seeds %, updated petal total).
 function ConfirmView({
   currentSeeds,
   petalsThisRun,
@@ -79,6 +81,9 @@ function ConfirmView({
   );
 }
 
+// Prestige node grid, shown after confirming a prestige or when browsing from the main screen.
+// isPostPrestige controls whether the button reads "Continue →" (post-prestige) or "Close" (browse).
+// Nodes use AND+OR prerequisite gates enforced by canUnlockPrestigeNode.
 function TreeView({
   isPostPrestige,
   prestigeState,
@@ -164,6 +169,7 @@ function TreeView({
   );
 }
 
+// Entry point for the prestige overlay: routes to ConfirmView or TreeView based on mode prop.
 export default function PrestigeOverlay(props: Props) {
   if (props.mode === 'confirm') {
     return (

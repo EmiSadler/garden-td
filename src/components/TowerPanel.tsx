@@ -9,6 +9,7 @@ interface Props {
   onSelect: (type: TowerType | null) => void;
 }
 
+// Popup showing full stats for a tower type when the player hovers its button.
 function TowerTooltip({ type }: { type: TowerType }) {
   const stats = BASE_TOWER_STATS[type];
   return (
@@ -27,6 +28,9 @@ function TowerTooltip({ type }: { type: TowerType }) {
   );
 }
 
+// Bottom bar listing all unlocked tower types. Clicking a button enters placement mode;
+// clicking the selected button again deselects it. Unaffordable towers are disabled.
+// Shown cost is adjusted by the costMultiplier from the config (prestige + tech bonuses).
 export default function TowerPanel({ gold, selectedTowerType, config, onSelect }: Props) {
   const [hoveredType, setHoveredType] = useState<TowerType | null>(null);
 

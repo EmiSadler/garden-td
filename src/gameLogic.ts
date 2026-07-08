@@ -5,6 +5,7 @@ import { buildWave, calculateSeeds } from './waveBuilder';
 
 // ─── Factories ───────────────────────────────────────────────────────────────
 
+// Creates a fresh enemy at the map entry point, scaling hp and speed by wave multipliers.
 export function makeEnemy(type: EnemyType, entrySegmentId: string, hpMultiplier = 1, speedMultiplier = 1): Enemy {
   const stats = BASE_ENEMY_STATS[type];
   const hp = Math.round(stats.hp * hpMultiplier);
@@ -27,6 +28,7 @@ export function makeEnemy(type: EnemyType, entrySegmentId: string, hpMultiplier 
   };
 }
 
+// Creates a new tower on the grid with its cooldown at 0 so it fires immediately.
 export function makePlacedTower(type: TowerType, col: number, row: number): PlacedTower {
   return {
     id: uuidv4(),
@@ -43,6 +45,7 @@ export function makePlacedTower(type: TowerType, col: number, row: number): Plac
 
 // ─── Targeting ───────────────────────────────────────────────────────────────
 
+// Returns the grid tile the enemy is currently standing on, used for distance checks.
 export function getEnemyGridPos(enemy: Enemy, map: MapDef): GridPos {
   const segment = map.segments.find(s => s.id === enemy.segmentId);
   if (!segment) return { col: 0, row: 0 };
@@ -50,6 +53,8 @@ export function getEnemyGridPos(enemy: Enemy, map: MapDef): GridPos {
   return segment.tiles[idx];
 }
 
+// Finds the single highest-priority target in range: the enemy that has travelled furthest
+// along the path (so towers focus on enemies closest to the exit).
 export function findTarget(
   tower: PlacedTower,
   enemies: Enemy[],
@@ -70,6 +75,7 @@ export function findTarget(
   return best;
 }
 
+// Returns all living enemies within a circular radius of a point — used by AoE towers.
 export function findTargetsInRadius(
   col: number,
   row: number,
@@ -87,12 +93,15 @@ export function findTargetsInRadius(
 
 // ─── Damage ──────────────────────────────────────────────────────────────────
 
+// Returns a new enemy object with hp reduced by damage, floored at 0.
 export function applyDamageToEnemy(enemy: Enemy, damage: number): Enemy {
   return { ...enemy, hp: Math.max(0, enemy.hp - damage) };
 }
 
 // ─── Spawn logic ─────────────────────────────────────────────────────────────
 
+// Checks the pending spawn queue each tick and releases any enemies whose delay has elapsed.
+// hp and speed scale exponentially with wave number so later waves are meaningfully harder.
 function spawnDueEnemies(state: GameState, dt: number, map: MapDef): GameState {
   if (state.pendingSpawns.length === 0) return state;
 
@@ -118,12 +127,16 @@ function spawnDueEnemies(state: GameState, dt: number, map: MapDef): GameState {
 
 // ─── Enemy movement ───────────────────────────────────────────────────────────
 
+// Advances every enemy along the path for this frame. Handles all debuff timers (slow,
+// poison, stun, reverse), segment transitions, and marks enemies as exited when they
+// reach the end of the last segment.
 function tickEnemyMovement(state: GameState, dt: number, map: MapDef): GameState {
   const enemies = state.enemies.map(enemy => {
     if (enemy.hp <= 0) return enemy;
 
     const prevReverseTimer = enemy.reverseTimer;
     const newReverseTimer = Math.max(0, enemy.reverseTimer - dt);
+    // Grant 7s immunity after a reverse wears off so enemies can't be perma-reversed.
     const newReverseImmunity = prevReverseTimer > 0 && newReverseTimer === 0
       ? 7
       : Math.max(0, enemy.reverseImmunityTimer - dt);
@@ -163,7 +176,7 @@ function tickEnemyMovement(state: GameState, dt: number, map: MapDef): GameState
     if (newProgress >= segment.tiles.length - 1) {
       // Reached end of this segment
       if (segment.nextSegmentIds.length === 0) {
-        // Terminal segment — enemy exits
+        // Terminal segment — enemy exits and costs a life
         return {
           ...e,
           segmentProgress: segment.tiles.length - 1,
@@ -172,7 +185,7 @@ function tickEnemyMovement(state: GameState, dt: number, map: MapDef): GameState
           exited: true,
         };
       }
-      // Pick a random next segment
+      // Pick a random next segment (enables branching paths)
       const nextId = segment.nextSegmentIds[
         Math.floor(Math.random() * segment.nextSegmentIds.length)
       ];
@@ -192,6 +205,7 @@ function tickEnemyMovement(state: GameState, dt: number, map: MapDef): GameState
 
 // ─── Tower attacks ────────────────────────────────────────────────────────────
 
+// Calculates raw damage for a tower shot, applying global and tower-specific multipliers.
 function computeDamage(tower: PlacedTower, config: GameConfig, isCrit: boolean): number {
   const stats = BASE_TOWER_STATS[tower.type];
   let dmg = stats.damage * config.globalDamageMultiplier;
@@ -200,6 +214,9 @@ function computeDamage(tower: PlacedTower, config: GameConfig, isCrit: boolean):
   return dmg;
 }
 
+// Processes every tower's attack for this frame. Ticks cooldowns down; when a cooldown
+// reaches zero the tower fires, applying damage and debuffs to its target(s), then
+// resets the cooldown. Increments fireCount so the UI can trigger the pulse animation.
 function tickTowerAttacks(
   state: GameState,
   dt: number,
@@ -211,6 +228,7 @@ function tickTowerAttacks(
   const towers = state.towers.map(tower => {
     const stats = BASE_TOWER_STATS[tower.type];
 
+    // Sunflowers produce gold, not attacks — handled separately in tickSunflowers.
     if (tower.type === 'sunflower') return tower;
 
     const newCooldown = tower.cooldownTimer - dt * config.globalSpeedMultiplier;
@@ -220,6 +238,7 @@ function tickTowerAttacks(
     if (tower.type === 'beehive') range *= config.hiveRangeMultiplier;
 
     if (stats.aoe) {
+      // AoE towers hit every enemy in range simultaneously.
       const targets = findTargetsInRadius(tower.col, tower.row, range, enemies, map);
       if (targets.length === 0) return tower;
 
@@ -237,6 +256,7 @@ function tickTowerAttacks(
       return { ...tower, cooldownTimer: stats.cooldown / config.globalSpeedMultiplier, fireCount: tower.fireCount + 1, lastFireWasCrit: false };
     }
 
+    // Single-target: find the furthest-progressed enemy in range.
     const target = findTarget(tower, enemies, range, map);
     if (!target) return tower;
 
@@ -258,6 +278,7 @@ function tickTowerAttacks(
       return updated;
     });
 
+    // Watering Can chains a slow to up to 2 enemies near the primary target.
     if (tower.type === 'watering_can') {
       const ePos = getEnemyGridPos(target, map);
       const chainTargets = findTargetsInRadius(ePos.col, ePos.row, 2, enemies.filter(e => e.id !== target.id), map).slice(0, 2);
@@ -277,6 +298,7 @@ function tickTowerAttacks(
 
 // ─── Sunflower income ─────────────────────────────────────────────────────────
 
+// Ticks each sunflower's income timer; when it hits zero, adds gold and resets the timer.
 function tickSunflowers(state: GameState, dt: number, config: GameConfig): GameState {
   let gold = state.gold;
   const towers = state.towers.map(tower => {
@@ -294,6 +316,8 @@ function tickSunflowers(state: GameState, dt: number, config: GameConfig): GameS
 
 // ─── Collect dead/exited enemies ──────────────────────────────────────────────
 
+// Removes all hp≤0 enemies from the board. Killed enemies award gold and count toward
+// seeds; exited enemies cost a life. Boss snails also drop prestige petals.
 export function collectDeadEnemies(state: GameState, map: MapDef, config: GameConfig): GameState {
   let gold = state.gold;
   let enemiesKilledThisRun = state.enemiesKilledThisRun;
@@ -316,6 +340,7 @@ export function collectDeadEnemies(state: GameState, map: MapDef, config: GameCo
     return false;
   });
 
+  // Seeds are recalculated from scratch each frame based on total kills so far.
   const seedsThisRun = Math.floor(
     calculateSeeds(state.wave, enemiesKilledThisRun) * map.seedMultiplier
   );
@@ -325,6 +350,7 @@ export function collectDeadEnemies(state: GameState, map: MapDef, config: GameCo
 
 // ─── Phase ticks ─────────────────────────────────────────────────────────────
 
+// Counts down the placement timer before wave 1; launches the wave when it hits zero.
 export function tickPrep(state: GameState, dt: number): GameState {
   const prepTimer = state.prepTimer - dt;
   if (prepTimer <= 0) {
@@ -339,6 +365,7 @@ export function tickPrep(state: GameState, dt: number): GameState {
   return { ...state, prepTimer };
 }
 
+// Counts down the brief pause between waves; starts the next wave when it hits zero.
 export function tickWaveCountdown(state: GameState, dt: number): GameState {
   const waveCountdownTimer = state.waveCountdownTimer - dt;
   if (waveCountdownTimer <= 0) {
@@ -357,6 +384,9 @@ export function tickWaveCountdown(state: GameState, dt: number): GameState {
 
 // ─── Main tick ────────────────────────────────────────────────────────────────
 
+// The main game loop entry point, called every animation frame. Routes to the correct
+// sub-tick based on the current phase, then checks win/loss conditions.
+// Returns a brand-new GameState — never mutates the input.
 export function tick(
   state: GameState,
   dt: number,
@@ -379,13 +409,14 @@ export function tick(
 
     if (s.lives <= 0) return { ...s, phase: 'run_end' };
 
+    // Wave is clear when nothing is left to spawn and no enemies remain on the board.
     if (s.pendingSpawns.length === 0 && s.enemies.length === 0) {
       const isBossWave = state.wave % 10 === 0;
       return {
         ...s,
         phase: 'wave_countdown',
         waveCountdownTimer: WAVE_COUNTDOWN,
-        lives: isBossWave ? s.lives + 1 : s.lives,
+        lives: isBossWave ? s.lives + 1 : s.lives, // bonus life for clearing a boss wave
       };
     }
 

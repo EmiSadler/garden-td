@@ -7,6 +7,8 @@ interface Props {
   map: MapDef;
 }
 
+// Absolutely-positioned enemy sprite. Pixel position is interpolated each frame via
+// getEnemyPixelPos so movement is smooth between tiles. Boss snails render larger with a crown.
 export default function EnemySprite({ enemy, map }: Props) {
   const { x, y } = getEnemyPixelPos(enemy.segmentId, enemy.segmentProgress, map, TILE_SIZE);
   const stats = BASE_ENEMY_STATS[enemy.type];
@@ -20,6 +22,7 @@ export default function EnemySprite({ enemy, map }: Props) {
       className="absolute flex flex-col items-center pointer-events-none"
       style={{ left: x - (isBoss ? 20 : 14), top: y - (isBoss ? 32 : 24), zIndex: 10 }}
     >
+      {/* HP bar: green > 50%, amber > 25%, red below */}
       <div style={{ height: 4, width: isBoss ? 40 : 28, background: '#374151', borderRadius: 2, marginBottom: 1 }}>
         <div style={{
           height: '100%',
@@ -28,6 +31,7 @@ export default function EnemySprite({ enemy, map }: Props) {
           borderRadius: 2,
         }} />
       </div>
+      {/* Debuff indicators shown above the sprite when active */}
       {(isPoisoned || isSlowed) && (
         <div style={{ fontSize: 8, lineHeight: 1, marginBottom: 1, display: 'flex', gap: 1 }}>
           {isPoisoned && <span>🧪</span>}

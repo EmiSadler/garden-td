@@ -15,6 +15,9 @@ interface Props {
   onMouseLeave: () => void;
 }
 
+// A single 48×48 grid cell. Renders as path (amber), grass, or a highlighted placement target.
+// When a tower occupies the cell, its emoji span is re-keyed on fireCount so React remounts it
+// each time the tower fires — this re-triggers the CSS animation without needing JS timers.
 export default function GameTile({
   col: _col, row: _row, tower, selectedTowerType,
   isOnPath, isExit, isEntry,
@@ -40,6 +43,8 @@ export default function GameTile({
       {isExit && !tower && <span title="Garden Heart">🌷</span>}
       {isEntry && !tower && <span className="opacity-40 text-sm">▶</span>}
       {tower && (
+        // key={tower.fireCount} forces React to remount this span each time the tower fires,
+        // re-triggering the CSS keyframe animation from the start without any JS timer.
         <span
           key={tower.fireCount}
           title={BASE_TOWER_STATS[tower.type].label}

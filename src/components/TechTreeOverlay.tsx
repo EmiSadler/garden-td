@@ -14,6 +14,9 @@ const BRANCH_LABELS: Record<string, string> = {
   garden:  '☀️ Garden — Run Bonuses',
 };
 
+// Full-screen tech tree browser. Nodes in each branch unlock sequentially — position N
+// is only purchasable once position N-1 is owned. Costs are shown after the prestige
+// discount is applied (techNodeCostMultiplier < 1 if quick_study is unlocked).
 export default function TechTreeOverlay({ techTree, techNodeCostMultiplier, onUnlock, onClose }: Props) {
   const branches = ['roots', 'species', 'garden'] as const;
 

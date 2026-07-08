@@ -16,6 +16,9 @@ const SPEEDS = [
   { value: 5,     label: '5×' },
 ];
 
+// Top-bar HUD showing live stats, speed controls, and the prestige button.
+// Petal count combines persisted total with any petals earned this run (not yet awarded).
+// ⅓× speed is hidden unless the slow_motion prestige node has been unlocked.
 export default function HUD({ state, totalPetals, speed, slowMotionUnlocked, onSetSpeed, onPrestige }: Props) {
   const phaseLabel =
     state.phase === 'prep'           ? `⏱ ${Math.ceil(state.prepTimer)}s — place your first towers!` :
@@ -50,6 +53,7 @@ export default function HUD({ state, totalPetals, speed, slowMotionUnlocked, onS
       </div>
 
       <span className="ml-auto flex items-center gap-3">
+        {/* Prestige button is only visible once the player has earned at least one petal */}
         {displayPetals >= 1 && (
           <button
             onClick={onPrestige}

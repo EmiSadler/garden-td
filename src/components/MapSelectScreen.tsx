@@ -12,6 +12,9 @@ const DIFFICULTY_COLOR: Record<string, string> = {
   'Hardest': 'text-red-400',
 };
 
+// Full-screen map picker shown before each run. Filters the global MAPS list down to only
+// those the player has unlocked via the prestige tree, then displays each as a clickable card
+// showing difficulty, seed/petal multipliers, and whether the map has branching paths.
 export default function MapSelectScreen({ unlockedMapIds, onSelect }: Props) {
   const availableMaps = MAPS.filter(m => unlockedMapIds.includes(m.id));
 
@@ -36,6 +39,7 @@ export default function MapSelectScreen({ unlockedMapIds, onSelect }: Props) {
             <div className="flex gap-6 text-sm">
               <span className="text-green-300">🌱 {map.seedMultiplier}× seeds</span>
               <span className="text-pink-300">🌸 {map.petalMultiplier}× petals</span>
+              {/* Badge shown when a map's segments split — warns the player they can't cover all paths */}
               {map.segments.some(s => s.nextSegmentIds.length > 1) && (
                 <span className="text-yellow-300">⚡ Branching paths</span>
               )}

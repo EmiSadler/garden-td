@@ -14,6 +14,9 @@ import PrestigeOverlay from './components/PrestigeOverlay';
 
 type PrestigeOverlayMode = 'confirm' | 'tree' | 'browse' | null;
 
+// Root component and application orchestrator. Owns all three hooks and computes gameConfig
+// from their combined output. Routes between MapSelectScreen and the main game view.
+// Guards seed/petal awards with boolean flags so they're credited exactly once per run.
 export default function App() {
   const { prestigeState, addPetals, unlockPrestigeNode, prestige } = usePrestige();
   const prestigeConfig = computePrestigeConfig(prestigeState.unlocked);
@@ -21,6 +24,7 @@ export default function App() {
   const { techTree, addSeeds, unlockNode, resetWithSeeds } = useTechTree(prestigeConfig.techNodeCostMultiplier);
   const gameConfig = computeGameConfig(techTree.unlocked, prestigeConfig);
 
+  // Skip the map select screen when only one map is unlocked.
   const [selectedMapId, setSelectedMapId] = useState<number | null>(
     gameConfig.unlockedMapIds.length === 1 ? 1 : null
   );
@@ -33,11 +37,13 @@ export default function App() {
   const [petalsAwarded, setPetalsAwarded] = useState(false);
   const [prestigeOverlayMode, setPrestigeOverlayMode] = useState<PrestigeOverlayMode>(null);
 
+  // Credits this run's seeds and petals exactly once; idempotent via boolean guards.
   const awardRunRewards = useCallback(() => {
     if (!seedsAwarded) { addSeeds(state.seedsThisRun); setSeedsAwarded(true); }
     if (!petalsAwarded) { addPetals(state.petalsThisRun); setPetalsAwarded(true); }
   }, [seedsAwarded, petalsAwarded, state.seedsThisRun, state.petalsThisRun, addSeeds, addPetals]);
 
+  // Resets the award guards so the next run can grant rewards independently.
   const resetRunRewards = () => { setSeedsAwarded(false); setPetalsAwarded(false); };
 
   if (selectedMapId === null) {
@@ -53,12 +59,14 @@ export default function App() {
     ? state.towers.find(t => t.id === state.selectedTowerId)
     : undefined;
 
+  // Opens the tech tree from the run-end overlay; sets a flag so closing it triggers restart.
   const handleOpenTechTree = () => {
     awardRunRewards();
     setTechTreeOpenedFromRunEnd(true);
     setShowTechTree(true);
   };
 
+  // Awards run rewards then restarts; goes to map select when multiple maps are available.
   const handleRestartRun = () => {
     awardRunRewards();
     resetRunRewards();
@@ -69,6 +77,7 @@ export default function App() {
     }
   };
 
+  // Closes the tech tree; if opened from run end, also resets rewards and goes back to start.
   const handleCloseTechTree = () => {
     setShowTechTree(false);
     if (techTreeOpenedFromRunEnd) {
@@ -84,6 +93,8 @@ export default function App() {
 
   const handlePrestigeClick = () => setPrestigeOverlayMode('confirm');
 
+  // Commits the prestige: awards run petals, wipes the tech tree (keeping the calculated seed carry),
+  // then opens the prestige tree so the player can spend their new petals immediately.
   const handlePrestigeConfirm = () => {
     addPetals(state.petalsThisRun);
     setPetalsAwarded(true);
@@ -92,6 +103,7 @@ export default function App() {
     setPrestigeOverlayMode('tree');
   };
 
+  // Called when the player clicks "Continue →" after spending post-prestige petals.
   const handlePrestigeContinue = () => {
     setPrestigeOverlayMode(null);
     resetRunRewards();
@@ -151,6 +163,7 @@ export default function App() {
         />
       </div>
 
+      {/* Version label injected at build time from package.json via vite.config.ts */}
       <div className="mt-2 text-green-700 text-xs font-mono">v{__VERSION__}</div>
 
       <div className="mt-2 flex gap-4 items-center">

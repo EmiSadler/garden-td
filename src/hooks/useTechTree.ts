@@ -4,6 +4,7 @@ import { TECH_NODES, canUnlockNode } from '../gameConfig';
 
 const STORAGE_KEY = 'garden_td_tech_tree';
 
+// Reads the tech tree from localStorage; returns a blank state if the key is missing or corrupt.
 function loadFromStorage(): TechTreeState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -15,6 +16,8 @@ function loadFromStorage(): TechTreeState {
   }
 }
 
+// Serialises the tech tree state to localStorage after every mutation.
+// Converts the Set to an array so JSON.stringify can handle it.
 function saveToStorage(state: TechTreeState): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
     seeds: state.seeds,
@@ -22,9 +25,12 @@ function saveToStorage(state: TechTreeState): void {
   }));
 }
 
+// Manages the player's persistent tech tree (seed balance + unlocked nodes).
+// techNodeCostMultiplier comes from the prestige tree (quick_study node reduces it to 0.9).
 export function useTechTree(techNodeCostMultiplier = 1.0) {
   const [techTree, setTechTree] = useState<TechTreeState>(loadFromStorage);
 
+  // Adds seeds to the balance (called at run end with the seeds earned that run).
   const addSeeds = useCallback((amount: number) => {
     setTechTree(prev => {
       const next = { ...prev, seeds: prev.seeds + amount };
@@ -33,6 +39,8 @@ export function useTechTree(techNodeCostMultiplier = 1.0) {
     });
   }, []);
 
+  // Attempts to purchase a node: validates cost (with prestige multiplier applied),
+  // branch prerequisites, and that the node isn't already owned.
   const unlockNode = useCallback((nodeId: string) => {
     setTechTree(prev => {
       const node = TECH_NODES.find(n => n.id === nodeId);
@@ -50,6 +58,7 @@ export function useTechTree(techNodeCostMultiplier = 1.0) {
     });
   }, [techNodeCostMultiplier]);
 
+  // Wipes all unlocks and sets the seed balance to keptSeeds (called during prestige reset).
   const resetWithSeeds = useCallback((keptSeeds: number) => {
     setTechTree(() => {
       const next = { seeds: keptSeeds, unlocked: new Set<string>() };
