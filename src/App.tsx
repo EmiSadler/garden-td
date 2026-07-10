@@ -127,6 +127,7 @@ export default function App() {
           <GameBoard
             state={state}
             map={map}
+            speed={speed}
             onTileClick={(col, row) => {
               if (state.selectedTowerType) placeTower(col, row);
               else selectTower(null);

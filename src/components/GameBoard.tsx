@@ -27,6 +27,13 @@ interface GoldFloat {
   amount: number;
 }
 
+interface DamageFloat {
+  id: string;
+  x: number;
+  y: number;
+  amount: number;
+}
+
 // Only these tower types emit an expanding ring animation when they fire.
 const AOE_TOWER_TYPES = new Set(['beehive', 'sprinkler', 'oak_tree']);
 
@@ -39,6 +46,7 @@ const AOE_RING_COLOR: Record<string, string> = {
 interface Props {
   state: GameState;
   map: MapDef;
+  speed: number;
   onTileClick: (col: number, row: number) => void;
   onTowerClick: (id: string) => void;
 }
@@ -51,14 +59,18 @@ interface RangeRing {
 }
 
 // The game board: renders the 20×12 tile grid, all enemies, and all transient visual effects
-// (AoE rings, death pops, gold floats, life flash). Keeps its own effect state separate from
-// the game loop so visual flair doesn't pollute GameState.
-export default function GameBoard({ state, map, onTileClick, onTowerClick }: Props) {
+// (AoE rings, death pops, gold floats, damage floats, life flash). Keeps its own effect state
+// separate from the game loop so visual flair doesn't pollute GameState.
+export default function GameBoard({ state, map, speed, onTileClick, onTowerClick }: Props) {
   const [hoveredPos, setHoveredPos] = useState<{ col: number; row: number } | null>(null);
   const [aoeRings, setAoeRings] = useState<AoeRing[]>([]);
   const [deathPops, setDeathPops] = useState<DeathPop[]>([]);
   const [goldFloats, setGoldFloats] = useState<GoldFloat[]>([]);
+  const [damageFloats, setDamageFloats] = useState<DamageFloat[]>([]);
   const [lifeFlashKey, setLifeFlashKey] = useState(0);
+  // Ref so the damage-detection effect always reads the latest speed without re-registering.
+  const speedRef = useRef(speed);
+  speedRef.current = speed;
   // Stores last-seen fireCount per tower so we can detect the moment it increments.
   const prevFireCountsRef = useRef<Map<string, number>>(new Map());
   // Stores last frame's enemy map so we can detect disappearances (kills vs exits).
@@ -111,6 +123,22 @@ export default function GameBoard({ state, map, onTileClick, onTowerClick }: Pro
       }
     }
 
+    // Detect damage taken by enemies still alive: HP decreased since last frame.
+    // Only spawn floating numbers at ⅓× and 1× speed — too noisy at 3× and 5×.
+    const newDamage: DamageFloat[] = [];
+    if (speedRef.current <= 1) {
+      for (const enemy of state.enemies) {
+        const prev = prevEnemiesRef.current.get(enemy.id);
+        if (prev && enemy.hp < prev.hp) {
+          const amount = Math.round(prev.hp - enemy.hp);
+          if (amount > 0) {
+            const { x, y } = getEnemyPixelPos(enemy.segmentId, enemy.segmentProgress, map, TILE_SIZE);
+            newDamage.push({ id: `dmg-${enemy.id}-${enemy.hitCount}`, x, y, amount });
+          }
+        }
+      }
+    }
+
     prevEnemiesRef.current = new Map(state.enemies.map(e => [e.id, e]));
 
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -124,6 +152,11 @@ export default function GameBoard({ state, map, onTileClick, onTowerClick }: Pro
       setGoldFloats(prev => [...prev, ...newGold]);
       const ids = new Set(newGold.map(g => g.id));
       timers.push(setTimeout(() => setGoldFloats(prev => prev.filter(g => !ids.has(g.id))), 750));
+    }
+    if (newDamage.length > 0) {
+      setDamageFloats(prev => [...prev, ...newDamage]);
+      const ids = new Set(newDamage.map(d => d.id));
+      timers.push(setTimeout(() => setDamageFloats(prev => prev.filter(d => !ids.has(d.id))), 650));
     }
     if (exitCount > 0) {
       // Incrementing the key remounts the overlay element, re-triggering the CSS animation
@@ -235,6 +268,16 @@ export default function GameBoard({ state, map, onTileClick, onTowerClick }: Pro
           style={{ left: g.x - 12, top: g.y - 24, zIndex: 16 }}
         >
           +{g.amount}g
+        </div>
+      ))}
+
+      {damageFloats.map(d => (
+        <div
+          key={d.id}
+          className="absolute pointer-events-none animate-float-damage font-bold text-white text-xs"
+          style={{ left: d.x + 6, top: d.y - 18, zIndex: 16, textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
+        >
+          {d.amount}
         </div>
       ))}
 

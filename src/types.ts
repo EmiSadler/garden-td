@@ -44,6 +44,7 @@ export interface Enemy {
   stunTimer: number;
   reverseTimer: number;
   reverseImmunityTimer: number;
+  hitCount: number;       // increments each time the enemy takes damage; drives hit flash animation
   exited?: boolean;
 }
 

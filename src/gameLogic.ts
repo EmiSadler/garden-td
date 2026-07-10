@@ -25,6 +25,7 @@ export function makeEnemy(type: EnemyType, entrySegmentId: string, hpMultiplier 
     reverseTimer: 0,
     reverseImmunityTimer: 0,
     activeSlowFactor: 0.5,
+    hitCount: 0,
   };
 }
 
@@ -94,8 +95,13 @@ export function findTargetsInRadius(
 // ─── Damage ──────────────────────────────────────────────────────────────────
 
 // Returns a new enemy object with hp reduced by damage, floored at 0.
+// Increments hitCount so EnemySprite can re-trigger the hit flash animation.
 export function applyDamageToEnemy(enemy: Enemy, damage: number): Enemy {
-  return { ...enemy, hp: Math.max(0, enemy.hp - damage) };
+  return {
+    ...enemy,
+    hp: Math.max(0, enemy.hp - damage),
+    hitCount: damage > 0 ? enemy.hitCount + 1 : enemy.hitCount,
+  };
 }
 
 // ─── Spawn logic ─────────────────────────────────────────────────────────────

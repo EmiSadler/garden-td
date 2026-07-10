@@ -8,6 +8,8 @@
   --animate-death-pop:    death-pop    0.35s ease-out forwards;
   --animate-float-gold:   float-gold   0.65s ease-out forwards;
   --animate-life-flash:   life-flash   0.28s ease-out forwards;
+  --animate-enemy-hit:    enemy-hit    0.15s ease-out;
+  --animate-float-damage: float-gold   0.65s ease-out forwards;
 }
 
 @keyframes tower-pulse {
@@ -43,6 +45,12 @@
 @keyframes float-gold {
   0%   { transform: translateY(0);     opacity: 1; }
   100% { transform: translateY(-36px); opacity: 0; }
+}
+
+@keyframes enemy-hit {
+  0%   { filter: none; }
+  25%  { filter: brightness(2.5) sepia(1) saturate(3) hue-rotate(-20deg); }
+  100% { filter: none; }
 }
 
 @keyframes life-flash {

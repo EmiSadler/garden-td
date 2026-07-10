@@ -38,7 +38,8 @@ export default function EnemySprite({ enemy, map }: Props) {
           {isSlowed && <span>🧊</span>}
         </div>
       )}
-      <span style={{ fontSize: isBoss ? 28 : 18 }} title={stats.label}>
+      {/* key remount re-triggers the hit flash animation each time the enemy takes damage */}
+      <span key={enemy.hitCount} className="animate-enemy-hit" style={{ fontSize: isBoss ? 28 : 18 }} title={stats.label}>
         {stats.emoji}{isBoss && '👑'}
       </span>
     </div>
