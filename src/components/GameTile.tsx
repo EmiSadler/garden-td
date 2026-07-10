@@ -9,6 +9,7 @@ interface Props {
   isOnPath: boolean;
   isExit: boolean;
   isEntry: boolean;
+  isSelected: boolean;
   onClick: () => void;
   onTowerClick: (id: string) => void;
   onMouseEnter: () => void;
@@ -18,9 +19,10 @@ interface Props {
 // A single 48×48 grid cell. Renders as path (amber), grass, or a highlighted placement target.
 // When a tower occupies the cell, its emoji span is re-keyed on fireCount so React remounts it
 // each time the tower fires — this re-triggers the CSS animation without needing JS timers.
+// isSelected applies a yellow inset ring to show which tower the TowerInfoModal refers to.
 export default function GameTile({
   col: _col, row: _row, tower, selectedTowerType,
-  isOnPath, isExit, isEntry,
+  isOnPath, isExit, isEntry, isSelected,
   onClick, onTowerClick, onMouseEnter, onMouseLeave,
 }: Props) {
   const canPlace = !isOnPath && !tower && selectedTowerType;
@@ -32,7 +34,11 @@ export default function GameTile({
   return (
     <div
       className={`${bg} border border-green-900/30 flex items-center justify-center text-2xl select-none transition-colors`}
-      style={{ width: TILE_SIZE, height: TILE_SIZE }}
+      style={{
+        width: TILE_SIZE,
+        height: TILE_SIZE,
+        boxShadow: isSelected ? 'inset 0 0 0 2px #facc15, inset 0 0 8px #facc1580' : undefined,
+      }}
       onClick={() => {
         if (tower) { onTowerClick(tower.id); return; }
         onClick();

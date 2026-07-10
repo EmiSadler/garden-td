@@ -204,6 +204,7 @@ export default function GameBoard({ state, map, speed, onTileClick, onTowerClick
               isOnPath={pathTileSet.has(`${col},${row}`)}
               isExit={exitTile.col === col && exitTile.row === row}
               isEntry={entryTile.col === col && entryTile.row === row}
+              isSelected={!!towerByPos.get(`${col},${row}`) && towerByPos.get(`${col},${row}`)!.id === state.selectedTowerId}
               onClick={() => onTileClick(col, row)}
               onTowerClick={onTowerClick}
               onMouseEnter={() => setHoveredPos({ col, row })}
