@@ -33,7 +33,7 @@ export default function GameTile({
 
   return (
     <div
-      className={`${bg} border border-green-900/30 flex items-center justify-center text-2xl select-none transition-colors`}
+      className={`relative ${bg} border border-green-900/30 flex items-center justify-center text-2xl select-none transition-colors`}
       style={{
         width: TILE_SIZE,
         height: TILE_SIZE,
@@ -49,21 +49,25 @@ export default function GameTile({
       {isExit && !tower && <span title="Garden Heart">🌷</span>}
       {isEntry && !tower && <span className="opacity-40 text-sm">▶</span>}
       {tower && (
-        // key={tower.fireCount} forces React to remount this span each time the tower fires,
-        // re-triggering the CSS keyframe animation from the start without any JS timer.
-        <span
-          key={tower.fireCount}
-          title={BASE_TOWER_STATS[tower.type].label}
-          className={`cursor-pointer ${
-            tower.type === 'sunflower'
-              ? 'animate-tower-income'
-              : tower.lastFireWasCrit
-                ? 'animate-tower-crit'
-                : 'animate-tower-pulse'
-          }`}
-        >
-          {BASE_TOWER_STATS[tower.type].emoji}
-        </span>
+        <>
+          {/* Mounts fresh when a tower is placed, so the animation always fires on placement */}
+          <div className="absolute inset-0 pointer-events-none animate-placement-flash rounded-sm bg-green-300" />
+          {/* key={tower.fireCount} forces React to remount this span each time the tower fires,
+              re-triggering the CSS keyframe animation from the start without any JS timer. */}
+          <span
+            key={tower.fireCount}
+            title={BASE_TOWER_STATS[tower.type].label}
+            className={`cursor-pointer ${
+              tower.type === 'sunflower'
+                ? 'animate-tower-income'
+                : tower.lastFireWasCrit
+                  ? 'animate-tower-crit'
+                  : 'animate-tower-pulse'
+            }`}
+          >
+            {BASE_TOWER_STATS[tower.type].emoji}
+          </span>
+        </>
       )}
     </div>
   );
