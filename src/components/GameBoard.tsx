@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Enemy, GameState, MapDef } from '../types';
+import type { SoundName } from '../hooks/useAudio';
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, BASE_ENEMY_STATS, BASE_TOWER_STATS } from '../constants';
 import { getMapPathTileSet, getMapExitTile, getMapEntryTile, getEnemyPixelPos } from '../maps';
 import GameTile from './GameTile';
@@ -47,6 +48,7 @@ interface Props {
   state: GameState;
   map: MapDef;
   speed: number;
+  playSound: (name: SoundName) => void;
   onTileClick: (col: number, row: number) => void;
   onTowerClick: (id: string) => void;
 }
@@ -61,7 +63,7 @@ interface RangeRing {
 // The game board: renders the 20×12 tile grid, all enemies, and all transient visual effects
 // (AoE rings, death pops, gold floats, damage floats, life flash). Keeps its own effect state
 // separate from the game loop so visual flair doesn't pollute GameState.
-export default function GameBoard({ state, map, speed, onTileClick, onTowerClick }: Props) {
+export default function GameBoard({ state, map, speed, playSound, onTileClick, onTowerClick }: Props) {
   const [hoveredPos, setHoveredPos] = useState<{ col: number; row: number } | null>(null);
   const [aoeRings, setAoeRings] = useState<AoeRing[]>([]);
   const [deathPops, setDeathPops] = useState<DeathPop[]>([]);
@@ -116,10 +118,12 @@ export default function GameBoard({ state, map, speed, onTileClick, onTowerClick
       const { x, y } = getEnemyPixelPos(enemy.segmentId, enemy.segmentProgress, map, TILE_SIZE);
       if (enemy.exited) {
         exitCount++;
+        playSound('life_lost');
       } else {
         const stats = BASE_ENEMY_STATS[enemy.type];
         newPops.push({ id: `pop-${id}`, x, y, emoji: stats.emoji });
         newGold.push({ id: `gold-${id}`, x, y, amount: stats.goldReward });
+        playSound('enemy_die');
       }
     }
 

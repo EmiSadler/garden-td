@@ -3,6 +3,7 @@ import type { GameState, TowerType, GameConfig, PlacedTower } from '../types';
 import { BASE_TOWER_STATS, SELL_REFUND } from '../constants';
 import { tick, makePlacedTower } from '../gameLogic';
 import { getMapById, getMapPathTileSet, getMapEntryTile } from '../maps';
+import type { SaveData } from './useSaveState';
 
 // Candidate grid offsets for placing free starting towers adjacent to the entry tile.
 // Tried in order until a valid non-path slot is found for each tower.
@@ -111,15 +112,16 @@ export function useGameState(config: GameConfig, mapId: number) {
   }, []);
 
   // Places the selected tower type at (col, row) if the tile is free, on-grid, and affordable.
-  const placeTower = useCallback((col: number, row: number) => {
+  // Returns true if placement succeeded (caller can use this to trigger sounds).
+  const placeTower = useCallback((col: number, row: number): boolean => {
     const s = stateRef.current;
-    if (!s.selectedTowerType) return;
-    if (pathTileSetRef.current.has(`${col},${row}`)) return;
-    if (s.towers.some(t => t.col === col && t.row === row)) return;
+    if (!s.selectedTowerType) return false;
+    if (pathTileSetRef.current.has(`${col},${row}`)) return false;
+    if (s.towers.some(t => t.col === col && t.row === row)) return false;
 
     const stats = BASE_TOWER_STATS[s.selectedTowerType];
     const cost = Math.round(stats.cost * configRef.current.costMultiplier);
-    if (s.gold < cost) return;
+    if (s.gold < cost) return false;
 
     const tower = makePlacedTower(s.selectedTowerType, col, row);
     stateRef.current = {
@@ -129,6 +131,7 @@ export function useGameState(config: GameConfig, mapId: number) {
       selectedTowerType: null,
     };
     setTick(n => n + 1);
+    return true;
   }, []);
 
   // Selects a placed tower by id (to show the TowerInfoModal); clears tower type selection.
@@ -150,6 +153,17 @@ export function useGameState(config: GameConfig, mapId: number) {
       towers: s.towers.filter(t => t.id !== towerId),
       selectedTowerId: null,
     };
+    setTick(n => n + 1);
+  }, []);
+
+  // Restores game state from a save file, resuming where the player left off.
+  const loadGame = useCallback((saveData: SaveData) => {
+    mapRef.current = getMapById(saveData.mapId);
+    pathTileSetRef.current = getMapPathTileSet(mapRef.current);
+    lastTimeRef.current = undefined;
+    stateRef.current = { ...saveData.state, selectedTowerType: null, selectedTowerId: null };
+    speedRef.current = 1;
+    setSpeedState(1);
     setTick(n => n + 1);
   }, []);
 
@@ -175,5 +189,6 @@ export function useGameState(config: GameConfig, mapId: number) {
     selectTower,
     sellTower,
     restartRun,
+    loadGame,
   };
 }

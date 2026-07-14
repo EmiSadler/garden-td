@@ -1,7 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTechTree } from './hooks/useTechTree';
 import { useGameState } from './hooks/useGameState';
 import { usePrestige } from './hooks/usePrestige';
+import { useAudio } from './hooks/useAudio';
+import { loadSave, writeSave, clearSave } from './hooks/useSaveState';
 import { computeGameConfig, computePrestigeConfig } from './gameConfig';
 import GameBoard from './components/GameBoard';
 import HUD from './components/HUD';
@@ -11,12 +13,15 @@ import RunEndOverlay from './components/RunEndOverlay';
 import TechTreeOverlay from './components/TechTreeOverlay';
 import MapSelectScreen from './components/MapSelectScreen';
 import PrestigeOverlay from './components/PrestigeOverlay';
+import MainMenu from './components/MainMenu';
+import HowToScreen from './components/HowToScreen';
+import SettingsOverlay from './components/SettingsOverlay';
 
+type AppScreen = 'menu' | 'game' | 'how_to' | 'settings';
 type PrestigeOverlayMode = 'confirm' | 'tree' | 'browse' | null;
 
-// Root component and application orchestrator. Owns all three hooks and computes gameConfig
-// from their combined output. Routes between MapSelectScreen and the main game view.
-// Guards seed/petal awards with boolean flags so they're credited exactly once per run.
+// Root component. Owns all hooks, routes between screens, manages save/load, and
+// wires audio events to game actions.
 export default function App() {
   const { prestigeState, addPetals, unlockPrestigeNode, prestige } = usePrestige();
   const prestigeConfig = computePrestigeConfig(prestigeState.unlocked);
@@ -24,11 +29,12 @@ export default function App() {
   const { techTree, addSeeds, unlockNode, resetWithSeeds } = useTechTree(prestigeConfig.techNodeCostMultiplier);
   const gameConfig = computeGameConfig(techTree.unlocked, prestigeConfig);
 
-  // Skip the map select screen when only one map is unlocked.
-  const [selectedMapId, setSelectedMapId] = useState<number | null>(
-    gameConfig.unlockedMapIds.length === 1 ? 1 : null
-  );
-  const { state, map, speed, setSpeed, selectTowerType, placeTower, selectTower, sellTower, restartRun } =
+  const { playSound, audioSettings, setAudioSettings } = useAudio();
+
+  const [appScreen, setAppScreen] = useState<AppScreen>('menu');
+  const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
+
+  const { state, map, speed, setSpeed, selectTowerType, placeTower, selectTower, sellTower, restartRun, loadGame } =
     useGameState(gameConfig, selectedMapId ?? 1);
 
   const [showTechTree, setShowTechTree] = useState(false);
@@ -36,15 +42,133 @@ export default function App() {
   const [seedsAwarded, setSeedsAwarded] = useState(false);
   const [petalsAwarded, setPetalsAwarded] = useState(false);
   const [prestigeOverlayMode, setPrestigeOverlayMode] = useState<PrestigeOverlayMode>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  // Credits this run's seeds and petals exactly once; idempotent via boolean guards.
+  // ─── Save / load ───────────────────────────────────────────────────────────
+
+  // Snapshot state into localStorage whenever the phase becomes wave_countdown (after each wave).
+  // Also clear the save on run_end so Continue isn't offered for a finished run.
+  const prevPhaseRef = useRef(state.phase);
+  useEffect(() => {
+    if (appScreen !== 'game' || state.phase === prevPhaseRef.current) return;
+    prevPhaseRef.current = state.phase;
+
+    if (state.phase === 'wave_countdown') {
+      writeSave(state, selectedMapId ?? 1);
+    }
+    if (state.phase === 'run_end') {
+      clearSave();
+    }
+  }, [state.phase, appScreen, state, selectedMapId]);
+
+  // Flush a save on page unload (covers mid-wave refreshes) using refs so the effect
+  // only needs to register once.
+  const stateSnapshotRef = useRef(state);
+  stateSnapshotRef.current = state;
+  const appScreenRef = useRef(appScreen);
+  appScreenRef.current = appScreen;
+  const selectedMapIdRef = useRef(selectedMapId);
+  selectedMapIdRef.current = selectedMapId;
+
+  useEffect(() => {
+    const handler = () => {
+      if (appScreenRef.current === 'game' && stateSnapshotRef.current.phase !== 'run_end') {
+        writeSave(stateSnapshotRef.current, selectedMapIdRef.current ?? 1);
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
+  // ─── Phase sounds ──────────────────────────────────────────────────────────
+
+  const prevPhaseSoundRef = useRef(state.phase);
+  useEffect(() => {
+    if (appScreen !== 'game' || state.phase === prevPhaseSoundRef.current) return;
+    prevPhaseSoundRef.current = state.phase;
+    if (state.phase === 'wave')           playSound('wave_start');
+    if (state.phase === 'wave_countdown') playSound('wave_clear');
+  }, [state.phase, appScreen, playSound]);
+
+  // ─── Menu actions ──────────────────────────────────────────────────────────
+
+  const handleContinue = useCallback(() => {
+    const save = loadSave();
+    if (!save) return;
+    loadGame(save);
+    setSelectedMapId(save.mapId);
+    setAppScreen('game');
+  }, [loadGame]);
+
+  const handleNewGame = useCallback(() => {
+    clearSave();
+    const mapId = gameConfig.unlockedMapIds.length === 1 ? 1 : null;
+    setSelectedMapId(mapId);
+    restartRun(mapId ?? 1);
+    setSeedsAwarded(false);
+    setPetalsAwarded(false);
+    setAppScreen('game');
+  }, [gameConfig.unlockedMapIds.length, restartRun]);
+
+  const handleResetAllData = useCallback(() => {
+    if (!showResetConfirm) { setShowResetConfirm(true); return; }
+    localStorage.removeItem('garden_td_tech_tree');
+    localStorage.removeItem('garden_td_prestige');
+    localStorage.removeItem('garden_td_save');
+    window.location.reload();
+  }, [showResetConfirm]);
+
+  // ─── Run-end reward flow ───────────────────────────────────────────────────
+
   const awardRunRewards = useCallback(() => {
     if (!seedsAwarded) { addSeeds(state.seedsThisRun); setSeedsAwarded(true); }
     if (!petalsAwarded) { addPetals(state.petalsThisRun); setPetalsAwarded(true); }
   }, [seedsAwarded, petalsAwarded, state.seedsThisRun, state.petalsThisRun, addSeeds, addPetals]);
 
-  // Resets the award guards so the next run can grant rewards independently.
   const resetRunRewards = () => { setSeedsAwarded(false); setPetalsAwarded(false); };
+
+  // ─── Screen routing ────────────────────────────────────────────────────────
+
+  if (appScreen === 'menu') {
+    return (
+      <>
+        <MainMenu
+          hasSave={!!loadSave()}
+          onContinue={handleContinue}
+          onNewGame={handleNewGame}
+          onHowTo={() => setAppScreen('how_to')}
+          onSettings={() => { setShowResetConfirm(false); setAppScreen('settings'); }}
+        />
+        {appScreen === 'settings' && (
+          <SettingsOverlay
+            audioSettings={audioSettings}
+            onUpdate={setAudioSettings}
+            onResetData={handleResetAllData}
+            onClose={() => setAppScreen('menu')}
+          />
+        )}
+      </>
+    );
+  }
+
+  if (appScreen === 'how_to') {
+    return <HowToScreen onBack={() => setAppScreen('menu')} />;
+  }
+
+  if (appScreen === 'settings') {
+    return (
+      <div className="min-h-screen bg-green-900 flex items-center justify-center">
+        <SettingsOverlay
+          audioSettings={audioSettings}
+          onUpdate={setAudioSettings}
+          onResetData={handleResetAllData}
+          onClose={() => setAppScreen('menu')}
+        />
+      </div>
+    );
+  }
+
+  // ─── Game screen ───────────────────────────────────────────────────────────
 
   if (selectedMapId === null) {
     return (
@@ -59,14 +183,12 @@ export default function App() {
     ? state.towers.find(t => t.id === state.selectedTowerId)
     : undefined;
 
-  // Opens the tech tree from the run-end overlay; sets a flag so closing it triggers restart.
   const handleOpenTechTree = () => {
     awardRunRewards();
     setTechTreeOpenedFromRunEnd(true);
     setShowTechTree(true);
   };
 
-  // Awards run rewards then restarts; goes to map select when multiple maps are available.
   const handleRestartRun = () => {
     awardRunRewards();
     resetRunRewards();
@@ -77,7 +199,12 @@ export default function App() {
     }
   };
 
-  // Closes the tech tree; if opened from run end, also resets rewards and goes back to start.
+  const handleBackToMenu = () => {
+    awardRunRewards();
+    resetRunRewards();
+    setAppScreen('menu');
+  };
+
   const handleCloseTechTree = () => {
     setShowTechTree(false);
     if (techTreeOpenedFromRunEnd) {
@@ -93,9 +220,8 @@ export default function App() {
 
   const handlePrestigeClick = () => setPrestigeOverlayMode('confirm');
 
-  // Commits the prestige: awards run petals, wipes the tech tree (keeping the calculated seed carry),
-  // then opens the prestige tree so the player can spend their new petals immediately.
   const handlePrestigeConfirm = () => {
+    playSound('prestige');
     addPetals(state.petalsThisRun);
     setPetalsAwarded(true);
     const keptSeeds = prestige(techTree.seeds);
@@ -103,12 +229,21 @@ export default function App() {
     setPrestigeOverlayMode('tree');
   };
 
-  // Called when the player clicks "Continue →" after spending post-prestige petals.
   const handlePrestigeContinue = () => {
     setPrestigeOverlayMode(null);
     resetRunRewards();
     setSelectedMapId(null);
     restartRun(undefined);
+  };
+
+  const handleUnlockNode = (nodeId: string) => {
+    unlockNode(nodeId);
+    playSound('unlock_node');
+  };
+
+  const handleUnlockPrestigeNode = (nodeId: string) => {
+    unlockPrestigeNode(nodeId);
+    playSound('unlock_node');
   };
 
   return (
@@ -128,9 +263,11 @@ export default function App() {
             state={state}
             map={map}
             speed={speed}
+            playSound={playSound}
             onTileClick={(col, row) => {
-              if (state.selectedTowerType) placeTower(col, row);
-              else selectTower(null);
+              if (state.selectedTowerType) {
+                if (placeTower(col, row)) playSound('place_tower');
+              } else selectTower(null);
             }}
             onTowerClick={id => selectTower(id)}
           />
@@ -139,7 +276,7 @@ export default function App() {
             <TowerInfoModal
               tower={selectedTower}
               config={gameConfig}
-              onSell={() => sellTower(selectedTower.id)}
+              onSell={() => { sellTower(selectedTower.id); playSound('sell_tower'); }}
               onClose={() => selectTower(null)}
             />
           )}
@@ -152,6 +289,7 @@ export default function App() {
               petalsEarned={state.petalsThisRun}
               onOpenTechTree={handleOpenTechTree}
               onRestart={handleRestartRun}
+              onMenu={handleBackToMenu}
             />
           )}
         </div>
@@ -164,27 +302,20 @@ export default function App() {
         />
       </div>
 
-      {/* Version label injected at build time from package.json via vite.config.ts */}
       <div className="mt-2 text-green-700 text-xs font-mono">v{__VERSION__}</div>
 
       <div className="mt-2 flex gap-4 items-center">
-        <button
-          onClick={() => setShowTechTree(true)}
-          className="text-green-400 hover:text-green-200 text-sm underline"
-        >
+        <button onClick={() => setAppScreen('menu')} className="text-green-500 hover:text-green-200 text-sm underline">
+          ☰ Menu
+        </button>
+        <button onClick={() => setShowTechTree(true)} className="text-green-400 hover:text-green-200 text-sm underline">
           🌱 Tech Tree ({techTree.seeds} seeds)
         </button>
-        <button
-          onClick={() => setPrestigeOverlayMode('browse')}
-          className="text-pink-400 hover:text-pink-200 text-sm underline"
-        >
+        <button onClick={() => setPrestigeOverlayMode('browse')} className="text-pink-400 hover:text-pink-200 text-sm underline">
           🌸 Prestige Tree ({prestigeState.petals} petals)
         </button>
         {gameConfig.unlockedMapIds.length > 1 && (
-          <button
-            onClick={() => setSelectedMapId(null)}
-            className="text-green-400 hover:text-green-200 text-sm underline"
-          >
+          <button onClick={() => setSelectedMapId(null)} className="text-green-400 hover:text-green-200 text-sm underline">
             🗺️ Change Map
           </button>
         )}
@@ -194,7 +325,7 @@ export default function App() {
         <TechTreeOverlay
           techTree={techTree}
           techNodeCostMultiplier={prestigeConfig.techNodeCostMultiplier}
-          onUnlock={unlockNode}
+          onUnlock={handleUnlockNode}
           onClose={handleCloseTechTree}
         />
       )}
@@ -209,7 +340,7 @@ export default function App() {
           prestigeConfig={prestigeConfig}
           onConfirm={handlePrestigeConfirm}
           onCancel={() => setPrestigeOverlayMode(null)}
-          onUnlockNode={unlockPrestigeNode}
+          onUnlockNode={handleUnlockPrestigeNode}
           onContinue={handlePrestigeContinue}
         />
       )}
